@@ -19,3 +19,7 @@ models/
 合同清单_*.xlsx
 审批表_*.xlsx
 报销单_*.xlsx
+
+# CI split output
+release/
+
