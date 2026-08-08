@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Runtime data & business files (not committed)
+bill.db
+invoices/
+test/
+models/
+
+# Generated report files
+合同清单_*.xlsx
+审批表_*.xlsx
+报销单_*.xlsx
