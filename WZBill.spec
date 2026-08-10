@@ -1,12 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+
+rapidocr_datas = collect_data_files('rapidocr_onnxruntime')
+rapidocr_binaries = collect_dynamic_libs('rapidocr_onnxruntime')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
-    datas=[('templates', 'templates'), ('models', 'models')],
-    hiddenimports=['PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets', 'pymupdf', 'openpyxl', 'rapidocr_onnxruntime', 'onnxruntime'],
+    binaries=rapidocr_binaries,
+    datas=[('templates', 'templates')] + rapidocr_datas,
+    hiddenimports=['PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets', 'pymupdf', 'openpyxl', 'rapidocr_onnxruntime', 'onnxruntime', 'rapidocr_onnxruntime.ch_ppocr_v3_det.text_detect', 'rapidocr_onnxruntime.ch_ppocr_v2_cls.text_cls', 'rapidocr_onnxruntime.ch_ppocr_v3_rec.text_recognize'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
