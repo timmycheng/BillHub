@@ -41,7 +41,8 @@ def init_db():
     CREATE TABLE IF NOT EXISTS payment_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         contract_id INTEGER NOT NULL,
-        pay_date TEXT NOT NULL,                -- 支付日期
+        pay_date TEXT NOT NULL,                -- 报销日期
+        invoice_date TEXT,                     -- 发票开票日期（OCR 识别，可空）
         stage TEXT,                            -- 阶段/期数
         amount REAL NOT NULL,                  -- 本次支付金额
         invoice_no TEXT,                       -- 发票号
@@ -83,7 +84,7 @@ def _migrate_payments():
     conn = sqlite3.connect(DB_PATH)
     try:
         cols = {r[1] for r in conn.execute('PRAGMA table_info(payment_records)').fetchall()}
-        for name in ('invoice_file', 'report_file'):
+        for name in ('invoice_date', 'invoice_file', 'report_file'):
             if name not in cols:
                 conn.execute(f'ALTER TABLE payment_records ADD COLUMN {name} TEXT')
         conn.commit()
@@ -189,13 +190,14 @@ def get_contract(cid):
 
 
 # ============ 支付记录 ============
-def add_payment(contract_id, pay_date, stage, amount, invoice_no='', remark='', invoice_file='',
-                report_file=''):
+def add_payment(contract_id, pay_date, stage, amount, invoice_no='', invoice_date='',
+                remark='', invoice_file='', report_file=''):
     conn = get_conn()
     cur = conn.execute(
-        'INSERT INTO payment_records (contract_id, pay_date, stage, amount, invoice_no, remark, '
-        'invoice_file, report_file) VALUES (?,?,?,?,?,?,?,?)',
-        (contract_id, pay_date, stage, float(amount), invoice_no, remark, invoice_file, report_file))
+        'INSERT INTO payment_records (contract_id, pay_date, invoice_date, stage, amount, '
+        'invoice_no, remark, invoice_file, report_file) VALUES (?,?,?,?,?,?,?,?,?)',
+        (contract_id, pay_date, invoice_date or '', stage, float(amount), invoice_no,
+         remark, invoice_file, report_file))
     conn.commit()
     conn.close()
     return cur.lastrowid

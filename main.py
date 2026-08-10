@@ -402,6 +402,10 @@ class MainWindow(QMainWindow):
         grid = QFormLayout()
         self.inv_no = QLineEdit()
         self.inv_no.setPlaceholderText('OCR 自动填充或手动输入')
+        self.invoice_date = QDateEdit()
+        self.invoice_date.setCalendarPopup(True)
+        self.invoice_date.setDate(QDate.currentDate())
+        self.invoice_date.setDisplayFormat('yyyy-MM-dd')
         self.pay_date = QDateEdit()
         self.pay_date.setCalendarPopup(True)
         self.pay_date.setDate(QDate.currentDate())
@@ -420,6 +424,7 @@ class MainWindow(QMainWindow):
         self.remark.setPlaceholderText('备注（可选）')
 
         grid.addRow('发票号：', self.inv_no)
+        grid.addRow('开票日期：', self.invoice_date)
         grid.addRow('报销日期：', self.pay_date)
         grid.addRow('金额：', self.amount)
         grid.addRow('阶段：', self.stage_combo)
@@ -445,8 +450,8 @@ class MainWindow(QMainWindow):
         # 历史支付记录
         self.history_group = QGroupBox('📊 历史支付记录')
         hist_layout = QVBoxLayout()
-        self.history_table = QTableWidget(0, 6)
-        self.history_table.setHorizontalHeaderLabels(['日期', '阶段', '金额', '发票号', '票据', '备注'])
+        self.history_table = QTableWidget(0, 7)
+        self.history_table.setHorizontalHeaderLabels(['报销日期', '开票日期', '阶段', '金额', '发票号', '票据', '备注'])
         self.history_table.horizontalHeader().setStretchLastSection(True)
         self.history_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.history_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -602,15 +607,16 @@ class MainWindow(QMainWindow):
             date_item = QTableWidgetItem(rec['pay_date'])
             date_item.setData(Qt.ItemDataRole.UserRole, rec['id'])  # 存记录 id 供删除
             self.history_table.setItem(r, 0, date_item)
-            self.history_table.setItem(r, 1, QTableWidgetItem(rec['stage'] or ''))
-            self.history_table.setItem(r, 2, QTableWidgetItem(f"¥{rec['amount']:,.2f}"))
-            self.history_table.setItem(r, 3, QTableWidgetItem(rec['invoice_no'] or ''))
+            self.history_table.setItem(r, 1, QTableWidgetItem(rec.get('invoice_date') or ''))
+            self.history_table.setItem(r, 2, QTableWidgetItem(rec['stage'] or ''))
+            self.history_table.setItem(r, 3, QTableWidgetItem(f"¥{rec['amount']:,.2f}"))
+            self.history_table.setItem(r, 4, QTableWidgetItem(rec['invoice_no'] or ''))
             # 票据列：显示文件名，双击打开
             fname = os.path.basename(rec['invoice_file']) if rec['invoice_file'] else ''
             item = QTableWidgetItem(fname)
             item.setData(Qt.ItemDataRole.UserRole, rec['invoice_file'] or '')
-            self.history_table.setItem(r, 4, item)
-            self.history_table.setItem(r, 5, QTableWidgetItem(rec['remark'] or ''))
+            self.history_table.setItem(r, 5, item)
+            self.history_table.setItem(r, 6, QTableWidgetItem(rec['remark'] or ''))
         self.history_table.clearSelection()
 
     def _selected_record(self):
@@ -664,7 +670,7 @@ class MainWindow(QMainWindow):
 
     def open_invoice_file(self, item):
         """双击票据列打开发票/收据文件"""
-        path = item.data(Qt.ItemDataRole.UserRole) if item.column() == 4 else None
+        path = item.data(Qt.ItemDataRole.UserRole) if item.column() == 5 else None
         if not path:
             path = self.history_table.item(item.row(), 4).data(Qt.ItemDataRole.UserRole)
         if path and os.path.exists(path):
@@ -708,7 +714,7 @@ class MainWindow(QMainWindow):
             try:
                 d = QDate.fromString(data['date'], 'yyyy-MM-dd')
                 if d.isValid():
-                    self.pay_date.setDate(d)
+                    self.invoice_date.setDate(d)
             except Exception:
                 pass
         if data.get('amount'):
@@ -748,6 +754,7 @@ class MainWindow(QMainWindow):
 
         c = self.current_contract
         pay_date = self.pay_date.date().toString('yyyy-MM-dd')
+        invoice_date = self.invoice_date.date().toString('yyyy-MM-dd')
         amount = self.amount.value()
         ctx, stages, this_pay = self._build_report_data(include_virtual=True)
 
@@ -792,6 +799,7 @@ class MainWindow(QMainWindow):
         db.add_payment(
             contract_id=c['id'],
             pay_date=pay_date,
+            invoice_date=invoice_date,
             stage=self.stage_value(),
             amount=amount,
             invoice_no=invoice_no,
@@ -809,11 +817,13 @@ class MainWindow(QMainWindow):
         self.inv_no.clear()
         self.amount.setValue(0)
         if self.stage_combo.count():
-            self.stage_combo.setCurrentIndex(0)
+            idx = self._first_enabled_stage_index()
+            self.stage_combo.setCurrentIndex(idx if idx >= 0 else 0)
         else:
             self.stage_combo.setEditText('')
         self.main_content.clear()
         self.remark.clear()
+        self.invoice_date.setDate(QDate.currentDate())
         self.pay_date.setDate(QDate.currentDate())
         self._invoice_src = None  # 票据文件随本次填报重置
         self.drop_area.setText('📷 拖拽发票/收据图片或 PDF 到此处，自动 OCR 识别\n（也支持点击选择文件）')
@@ -867,26 +877,56 @@ class MainWindow(QMainWindow):
         return self.stage_combo.currentText().strip()
 
     def _fill_stage_combo(self):
-        """切换合同时填充阶段下拉（有计划只许下拉，无计划可手输）"""
+        """切换合同时填充阶段下拉（有计划只许下拉，无计划可手输）。
+        已报销过的期数置灰不可选，默认选中第一个未报销期。"""
         self.stage_combo.blockSignals(True)
         self.stage_combo.clear()
         if self.current_contract:
             plan = db.list_payment_plan(self.current_contract['id'])
             if plan:
+                paid = self._paid_stages()
                 for p in plan:
                     text = f"第{p['seq']}期"
                     if p['condition']:
                         text += f"({p['condition']})"
                     self.stage_combo.addItem(text, p['seq'])
+                    if p['seq'] in paid:
+                        idx = self.stage_combo.count() - 1
+                        self.stage_combo.setItemData(idx, None, Qt.ItemDataRole.UserRole)
+                        item = self.stage_combo.model().item(idx)
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
                 self.stage_combo.setEditable(False)
-                # Qt 6.11:editable+placeholder 时 addItem 不自动选中,显式选中第 1 期
-                self.stage_combo.setCurrentIndex(0)
+                idx = self._first_enabled_stage_index()
+                self.stage_combo.setCurrentIndex(idx if idx >= 0 else 0)
             else:
                 self.stage_combo.setEditable(True)
                 self.stage_combo.setPlaceholderText('如：第一期 30%')
         else:
             self.stage_combo.setEditable(True)
         self.stage_combo.blockSignals(False)
+
+    def _paid_stages(self):
+        """该合同历史记录中已填报过的期数集合（1 基 seq）"""
+        if not self.current_contract:
+            return set()
+        plan = db.list_payment_plan(self.current_contract['id'])
+        if not plan:
+            return set()
+        n = len(plan)
+        paid = set()
+        for rec in db.list_payments(self.current_contract['id']):
+            idx = db._match_stage(rec.get('stage'), n)
+            if idx is not None:
+                paid.add(idx + 1)
+        return paid
+
+    def _first_enabled_stage_index(self):
+        """阶段下拉第一个可选项的索引（全禁用返回 -1）"""
+        model = self.stage_combo.model()
+        for i in range(self.stage_combo.count()):
+            if model.flags(model.index(i, 0)) & Qt.ItemFlag.ItemIsEnabled:
+                return i
+        return -1
 
     def _build_report_data(self, include_virtual=False):
         """组装 xlsx/PDF 渲染数据（与本次表单联动）。
@@ -895,12 +935,14 @@ class MainWindow(QMainWindow):
         if not c:
             return None
         pay_date = self.pay_date.date().toString('yyyy-MM-dd')
+        invoice_date = self.invoice_date.date().toString('yyyy-MM-dd')
         amount = self.amount.value()
         invoice_no = self.inv_no.text().strip()
         remark = self.remark.toPlainText().strip()
         extra = None
         if include_virtual and amount > 0:
-            extra = {'id': 0, 'pay_date': pay_date, 'stage': self.stage_value(),
+            extra = {'id': 0, 'pay_date': pay_date, 'invoice_date': invoice_date,
+                     'stage': self.stage_value(),
                      'amount': amount, 'invoice_no': invoice_no}
         stages, _ = db.get_plan_status(c['id'], extra_record=extra)
         base = stages
@@ -926,6 +968,7 @@ class MainWindow(QMainWindow):
             '本次金额': amount,
             '大写金额': num_to_cn(amount),
             '发票号': invoice_no,
+            '开票日期': invoice_date,
             '报销日期': pay_date,
             '阶段': self.stage_value(),
             '备注': remark,
@@ -966,7 +1009,7 @@ class MainWindow(QMainWindow):
     def show_about(self):
         QMessageBox.about(self, '关于 WZBill',
             'WZBill —— 智能行项目结算报销工具\n\n'
-            '版本：1.0.0\n'
+            '版本：1.1.0\n'
             '功能：合同管理（付款计划 / 分类 / 收款信息）\n'
             '      OCR 发票识别（图片 / PDF）\n'
             '      模板驱动审批表生成（统一归档）\n'
