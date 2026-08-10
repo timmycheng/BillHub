@@ -12,6 +12,8 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -51,6 +53,17 @@ jobs:
         with:
           name: WZBill-parts
           path: release/
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        run: |
+          $version = python -c "import re; print(re.search(r'版本：([0-9.]+)', open('main.py', encoding='utf-8').read()).group(1))"
+          $tag = "v$version"
+          if (gh release view $tag --json tagName 2>$null) { gh release delete $tag --yes --cleanup-tag }
+          gh release create $tag dist/WZBill.exe `
+            --title "WZBill $version" `
+            --generate-notes
+          Write-Host "Released $tag"
 
       - name: Email the parts to recipient
         if: success()
