@@ -1,0 +1,169 @@
+/* BillHub Web 基础样式（P1 占位版；后续阶段按面板细化） */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #1a202c;
+  --text-muted: #718096;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Microsoft YaHei", -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ============ 顶部导航 ============ */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar .brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.topbar .spacer { flex: 1; }
+.user-info { display: flex; align-items: center; gap: 10px; }
+.user-name { color: var(--text-muted); }
+.badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: var(--primary-dark);
+}
+
+/* ============ Flash 消息 ============ */
+.flash-container {
+  max-width: 960px;
+  margin: 12px auto;
+  padding: 0 16px;
+}
+.flash {
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid transparent;
+}
+.flash-danger { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.flash-warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.flash-success { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.flash-info { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+
+/* ============ 登录页 ============ */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+}
+.login-card {
+  background: var(--surface);
+  padding: 36px 32px;
+  border-radius: 12px;
+  width: 360px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+.login-card .logo {
+  font-size: 28px;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+.login-card .subtitle {
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  font-size: 13px;
+}
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+.field span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.field input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+.field input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ============ 按钮 ============ */
+.btn-primary, .btn-ghost {
+  cursor: pointer;
+  border: none;
+  font-size: 14px;
+  border-radius: 6px;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  padding: 9px 18px;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-block { width: 100%; padding: 10px; margin-top: 4px; }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px 12px;
+}
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+
+/* ============ 三栏面板（P1 占位）============ */
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+.col { min-height: calc(100vh - 52px - 32px); }
+.placeholder {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.placeholder h3 { color: var(--text); margin-bottom: 10px; }
+.placeholder .hint { margin-bottom: 14px; }
+.tag {
+  display: inline-block;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
