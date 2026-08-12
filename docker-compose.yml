@@ -1,0 +1,21 @@
+# BillHub Web 内网部署（docker compose up -d）
+services:
+  billhub:
+    image: billhub-web:${VERSION:-latest}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data          # SQLite 持久化（bill.db）
+      - ./uploads:/app/uploads    # 发票 / 审批表持久化
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - BILLHUB_DB=/app/data/bill.db
+      - BILLHUB_UPLOAD_DIR=/app/uploads
+      # LDAP/AD（可选，默认关闭；启用后本地账号仍可用）
+      - LDAP_ENABLED=${LDAP_ENABLED:-false}
+      - LDAP_URI=${LDAP_URI:-}
+      - LDAP_BASE_DN=${LDAP_BASE_DN:-}
+      # 首次启动种子管理员（仅当用户表为空时生效）
+      - BILLHUB_ADMIN_USER=${BILLHUB_ADMIN_USER:-admin}
+      - BILLHUB_ADMIN_PASS=${BILLHUB_ADMIN_PASS:-admin}
+    restart: unless-stopped

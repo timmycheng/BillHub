@@ -1,0 +1,139 @@
+# BillHub 双产物构建与发布：桌面 exe（Windows）+ Web Docker 镜像（Linux，离线 tar）
+name: Build & Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: build-release
+  cancel-in-progress: true
+
+jobs:
+  # ============ Job 1：桌面版 exe（Windows）============
+  build-exe:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      # 从 rapidocr 包拷贝 ONNX 模型到项目根 models/
+      - name: Prepare OCR models
+        run: python -c "import rapidocr_onnxruntime, os, shutil; src=os.path.join(os.path.dirname(rapidocr_onnxruntime.__file__),'models'); dst=os.path.join(os.getcwd(),'models'); os.makedirs(dst,exist_ok=True); [shutil.copy2(os.path.join(src,f),os.path.join(dst,f)) for f in os.listdir(src) if f.endswith('.onnx')]; print('[OK] Models copied')"
+
+      - name: Build exe with PyInstaller
+        run: pyinstaller --noconfirm --clean BillHub.spec
+
+      - name: Upload exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BillHub-exe
+          path: dist/BillHub.exe
+          if-no-files-found: error
+
+  # ============ Job 2：Web Docker 镜像（Linux，导出离线 tar）============
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: echo "ver=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        run: docker build -t billhub-web:${{ steps.version.outputs.ver }} -f Dockerfile.web .
+
+      - name: Export image (docker save + zstd)
+        run: |
+          mkdir -p release
+          docker save billhub-web:${{ steps.version.outputs.ver }} | zstd -19 -o release/billhub-web-${{ steps.version.outputs.ver }}.tar.zst
+          ls -lh release/
+
+      - name: Bundle deploy files
+        run: |
+          zip -j release/deploy-bundle.zip docker-compose.yml .env.example deploy.md
+
+      - name: Upload docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: billhub-web-image
+          path: release/billhub-web-*.tar.zst
+          if-no-files-found: error
+
+      - name: Upload deploy bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-bundle
+          path: release/deploy-bundle.zip
+          if-no-files-found: error
+
+  # ============ Job 3：统一发版（需前两个 Job 成功）============
+  release:
+    needs: [ build-exe, build-docker ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Read version
+        id: version
+        run: echo "ver=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          VER=${{ steps.version.outputs.ver }}
+          TAG="v${VER}"
+          ASSETS=()
+          for f in \
+            artifacts/BillHub-exe/BillHub.exe \
+            artifacts/billhub-web-image/billhub-web-${VER}.tar.zst \
+            artifacts/deploy-bundle/deploy-bundle.zip; do
+            [ -f "$f" ] && ASSETS+=("$f")
+          done
+          if gh release view "$TAG" --json tagName >/dev/null 2>&1; then
+            gh release delete "$TAG" --yes --cleanup-tag
+          fi
+          gh release create "$TAG" "${ASSETS[@]}" \
+            --title "BillHub ${VER}" \
+            --notes "桌面版（BillHub.exe）与 Web 版镜像（billhub-web-${VER}.tar.zst，离线 docker load）"
+          echo "Released ${TAG}"
+
+  # ============ Job 4：邮件分发（暂停中，稳定后启用）============
+  # 启用方法：
+  #   1. 把下方 if: false 改为 if: success()
+  #   2. 在 build-exe 中恢复 7z 分卷步骤（release/BillHub.7z.*）
+  #   3. 仓库配置 Secrets：SMTP_USER / SMTP_PASS（发件邮箱授权码）
+  #   4. 修改 scripts/send_email.py 或环境变量 MAIL_TO 为实际收件人
+  email:
+    if: false
+    needs: [ release ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Email artifacts (disabled)
+        run: echo "邮件分发已暂停。启用步骤见本 job 上方的注释。"

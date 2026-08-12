@@ -30,3 +30,6 @@ release/
 *.tar.zst
 *.tar.gz
 
+# Local env (secrets)
+.env
+

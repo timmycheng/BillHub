@@ -1,0 +1,33 @@
+# BillHub Web 版镜像（Flask + RapidOCR，内网离线部署）
+FROM python:3.11-slim
+
+# onnxruntime 运行时依赖 OpenMP（slim 镜像不带 libgomp）
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 先拷依赖清单装包（利用层缓存；Web 版不含 PyQt6/pyinstaller）
+COPY requirements-web.txt .
+RUN pip install --no-cache-dir -r requirements-web.txt
+
+# 拷业务代码 + 模板（templates/ 含审批表 Excel 模板）
+COPY db.py ocr.py template_engine.py contract_io.py utils.py ./
+COPY web/ ./web/
+COPY templates/ ./templates/
+
+# 构建期从 rapidocr 包内提取 ONNX 模型到 /app/models（与 exe 打包同一手法）
+RUN python -c "import rapidocr_onnxruntime as r,os,shutil; \
+    src=os.path.join(os.path.dirname(r.__file__),'models'); \
+    dst='/app/models'; os.makedirs(dst, exist_ok=True); \
+    [shutil.copy2(os.path.join(src,f),os.path.join(dst,f)) \
+     for f in os.listdir(src) if f.endswith('.onnx')]"
+
+# 数据落卷（SQLite DB、上传发票、生成的审批表）
+VOLUME ["/app/data", "/app/uploads"]
+ENV BILLHUB_DB=/app/data/bill.db
+ENV BILLHUB_UPLOAD_DIR=/app/uploads
+EXPOSE 8000
+
+# 生产 WSGI：waitress 多线程
+CMD ["waitress-serve", "--host=0.0.0.0", "--port=8000", "web.app:create_app()"]
