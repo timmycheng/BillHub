@@ -10,6 +10,7 @@ from web.routes.contracts import bp as contracts_bp
 from web.routes.main import main_bp
 from web.routes.ocr_api import bp as ocr_bp
 from web.routes.payments import bp as payments_bp
+from web.routes.preview import bp as preview_bp
 
 
 def create_app(config_class=Config):
@@ -29,6 +30,7 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
     app.register_blueprint(contracts_bp)
     app.register_blueprint(payments_bp)
+    app.register_blueprint(preview_bp)
     app.register_blueprint(ocr_bp)
     app.register_blueprint(main_bp)
 

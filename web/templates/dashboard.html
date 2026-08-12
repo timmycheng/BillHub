@@ -44,10 +44,16 @@
 
   {# ===== 右栏：审批表预览（P4）===== #}
   <section class="col col-right">
-    <div class="placeholder">
-      <h3>🖨 审批表预览</h3>
-      <p class="hint">HTML 预览 / 打印 / 下载 Excel</p>
-      <span class="tag">P4 阶段</span>
+    <div id="approval-preview"
+         {% if preview %}hx-get="{{ url_for('preview.saved', pid=preview) }}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML"{% endif %}>
+      {% if not preview %}
+      <div class="placeholder">
+        <h3>🖨 审批表预览</h3>
+        <p class="hint">填表后点「预览本次」，或生成报销单后自动显示</p>
+        <span class="tag">P4</span>
+      </div>
+      {% endif %}
     </div>
   </section>
 </div>

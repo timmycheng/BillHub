@@ -290,3 +290,40 @@ select { width: 100%; padding: 7px 10px; border: 1px solid var(--border);
 .history-table .cell-actions { white-space: nowrap; }
 .pad-sm { padding: 10px 0; }
 .small { font-size: 12px; }
+
+/* ============ 右栏：审批表预览 ============ */
+.col-right { display: flex; flex-direction: column; min-height: 0;
+  overflow-y: auto; max-height: calc(100vh - 52px - 32px); }
+.preview-wrap { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.preview-toolbar { display: flex; gap: 8px; align-items: center; }
+.approval-doc {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 22px 26px;
+}
+.doc-title { text-align: center; font-size: 18px; margin-bottom: 14px; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.doc-table td, .doc-table th {
+  border: 1px solid #94a3b8; padding: 7px 10px; vertical-align: top;
+}
+.doc-table .lbl { background: #f8fafc; white-space: nowrap; font-weight: 500; }
+.doc-table .val { word-break: break-all; }
+.doc-table .r { text-align: right; }
+.doc-table .c { text-align: center; }
+.plan-head th { background: #f1f5f9; font-weight: 600; }
+.plan-total td { font-weight: 600; background: #f8fafc; }
+.doc-meta { text-align: right; color: var(--text-muted); font-size: 12px;
+  margin-top: 10px; }
+
+/* 打印：只输出审批表正文，隐藏其余 UI */
+@media print {
+  body * { visibility: hidden; }
+  #approval-preview, #approval-preview * { visibility: visible; }
+  #approval-preview {
+    position: absolute; left: 0; top: 0; width: 100%;
+    display: block !important;
+  }
+  .no-print { display: none !important; }
+  .approval-doc { border: none; border-radius: 0; padding: 0; }
+  .doc-table td, .doc-table th { padding: 5px 8px; font-size: 12px; }
+  .doc-title { font-size: 16px; }
+}
