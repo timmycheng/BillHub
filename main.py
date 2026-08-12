@@ -31,15 +31,11 @@ import db
 import template_engine
 import contract_io
 from ocr import InvoiceOCR
+from utils import num_to_cn, safe_dirname
 
 DEFAULT_TEMPLATE = os.path.join(RES_DIR, 'templates', '审批表模板2026.xlsx')  # 当前固定使用此模板
 REPORT_DIR = os.path.join(BASE_DIR, '报销审批单')  # 审批单统一存放目录（按合同名分子文件夹）
 
-
-def safe_dirname(name):
-    """把合同名清洗为合法文件夹名（去 Windows 非法字符、截断）"""
-    s = re.sub(r'[\\/:*?"<>|]', '_', name or '').strip()
-    return s[:40] or '未命名合同'
 
 CONTRACT_CATEGORIES = ['人力外包类', '采购类', '维保类', '软件开发类', '收据类']
 
@@ -1015,59 +1011,6 @@ class MainWindow(QMainWindow):
             '      模板驱动审批表生成（统一归档）\n'
             '运行环境：完全离线，数据存储于本地 SQLite\n\n'
             'Created by Tim')
-
-
-def num_to_cn(num):
-    """金额转中文大写"""
-    if num is None or num == '':
-        return ''
-    num = float(num)
-    digits = '零壹贰叁肆伍陆柒捌玖'
-    units = ['', '拾', '佰', '仟']
-    big_units = ['', '万', '亿']
-    num = round(num * 100) / 100
-    int_part = int(num)
-    dec_part = round((num - int_part) * 100)
-    int_str = str(int_part)
-    groups = []
-    while len(int_str) > 4:
-        groups.insert(0, int_str[-4:])
-        int_str = int_str[:-4]
-    groups.insert(0, int_str)
-    result = ''
-    need_zero = False
-    for g in range(len(groups)):
-        group = groups[g]
-        part = ''
-        zero_flag = False
-        for i in range(len(group)):
-            d = int(group[i])
-            pos = len(group) - 1 - i
-            if d == 0:
-                zero_flag = True
-            else:
-                if zero_flag:
-                    part += '零'
-                part += digits[d] + units[pos]
-                zero_flag = False
-        if part:
-            if need_zero:
-                result += '零'
-            result += part + big_units[len(groups) - 1 - g]
-            need_zero = False
-        else:
-            need_zero = True
-    if not result:
-        result = '零'
-    if dec_part == 0:
-        return result + '元整'
-    jiao = dec_part // 10
-    fen = dec_part % 10
-    if jiao == 0:
-        return result + '元零' + digits[fen] + '分'
-    if fen == 0:
-        return result + '元' + digits[jiao] + '角整'
-    return result + '元' + digits[jiao] + '角' + digits[fen] + '分'
 
 
 def main():

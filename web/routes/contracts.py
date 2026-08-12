@@ -1,4 +1,4 @@
-"""BillHub 合同管理蓝图：列表 / 详情 / 增删改 / 付款计划 / 导入导出。
+﻿"""BillHub 合同管理蓝图：列表 / 详情 / 增删改 / 付款计划 / 导入导出。
 权限：普通用户只看自己的合同（owner_id），管理员（is_admin）看全部。
 导入导出为批量管理操作，限管理员。"""
 import os
@@ -11,7 +11,8 @@ from flask_login import current_user, login_required
 
 import contract_io
 import db
-from web.auth import admin_required
+from web.auth import admin_required, can_access_contract
+from web.routes.payments import render_payment_panel
 
 bp = Blueprint('contracts', __name__)
 
@@ -22,11 +23,6 @@ CONTRACT_CATEGORIES = ['人力外包类', '采购类', '维保类', '软件开�
 def _owner_filter():
     """列表过滤：管理员返回 None（全部），普通用户返回自己的 id。"""
     return None if current_user.is_admin else int(current_user.id)
-
-
-def _can_access(contract):
-    """当前用户能否访问该合同：管理员或拥有者。"""
-    return current_user.is_admin or (contract.get('owner_id') == int(current_user.id))
 
 
 # ============ 表单解析 ============
@@ -100,18 +96,20 @@ def list_panel():
     return render_template('_contract_list.html', contracts=contracts, q=q, selected=selected)
 
 
-# ============ 详情面板（HTMX 局部）============
+# ============ 详情面板（HTMX 局部）+ 报销面板（OOB）============
 @bp.route('/contracts/<int:cid>/info')
 @login_required
 def info_panel(cid):
     c = db.get_contract(cid)
-    if not c or not _can_access(c):
+    if not c or not can_access_contract(c):
         abort(404)
     stats = db.get_contract_stats(cid)
     stages, surplus = db.get_plan_status(cid)
     plan = db.list_payment_plan(cid)
-    return render_template('_contract_info.html', c=c, stats=stats,
+    info = render_template('_contract_info.html', c=c, stats=stats,
                            stages=stages, surplus=surplus, has_plan=bool(plan))
+    # 中栏报销面板随详情一起返回（HTMX OOB 交换），切换合同一次加载两栏
+    return info + render_payment_panel(cid, oob=True)
 
 
 # ============ 新增 ============
@@ -138,7 +136,7 @@ def new():
 @login_required
 def edit(cid):
     c = db.get_contract(cid)
-    if not c or not _can_access(c):
+    if not c or not can_access_contract(c):
         abort(404)
     if request.method == 'POST':
         data, err = _parse_form_data(request.form)
@@ -157,7 +155,7 @@ def edit(cid):
 @login_required
 def delete(cid):
     c = db.get_contract(cid)
-    if not c or not _can_access(c):
+    if not c or not can_access_contract(c):
         abort(404)
     name = c['contract_name']
     db.delete_contract(cid)

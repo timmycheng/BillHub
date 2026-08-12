@@ -263,6 +263,13 @@ def list_payments(contract_id):
     return [dict(r) for r in rows]
 
 
+def get_payment(pid):
+    conn = get_conn()
+    row = conn.execute('SELECT * FROM payment_records WHERE id=?', (pid,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def get_contract_stats(cid):
     """统计：已支付总额、剩余未付金额"""
     conn = get_conn()

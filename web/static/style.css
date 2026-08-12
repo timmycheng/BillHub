@@ -250,3 +250,43 @@ textarea, .field input[type="text"], .field input[type="number"], .field input[t
 
 .form-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .form-actions .btn-primary { padding: 8px 22px; }
+
+/* ============ 中栏：报销面板 ============ */
+.col-mid { display: flex; flex-direction: column; gap: 12px; min-height: 0;
+  overflow-y: auto; max-height: calc(100vh - 52px - 32px); }
+.pay-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 16px;
+}
+.pay-title { font-size: 15px; margin-bottom: 12px;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pay-title .small { font-size: 12px; font-weight: 400; }
+
+.drop-zone {
+  border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;
+  color: var(--text-muted); text-align: center; padding: 22px 12px;
+  cursor: pointer; margin-bottom: 8px; line-height: 1.8;
+}
+.drop-zone:hover, .drop-zone.drag { border-color: var(--primary); background: #eff6ff; }
+.ocr-status { font-size: 12px; margin-bottom: 10px; min-height: 18px;
+  color: var(--text-muted); }
+
+.pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.pay-grid .field { margin-bottom: 6px; }
+select { width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 14px; background: #fff; }
+
+.pay-actions { display: flex; gap: 10px; margin-top: 10px; }
+.pay-actions .btn-primary { padding: 8px 20px; }
+
+.history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.history-table th, .history-table td { padding: 6px 8px; text-align: left;
+  border-bottom: 1px solid var(--border); white-space: nowrap; }
+.history-table th { color: var(--text-muted); font-weight: 500;
+  position: sticky; top: 0; background: var(--surface); }
+.history-table .amt-td { text-align: right; }
+.history-table .cell-remark { max-width: 160px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.history-table .cell-actions { white-space: nowrap; }
+.pad-sm { padding: 10px 0; }
+.small { font-size: 12px; }

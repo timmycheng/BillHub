@@ -1,0 +1,125 @@
+"""BillHub 公共工具模块（桌面版 main.py 与 Web 版共享）。
+num_to_cn / safe_dirname 从 main.py 抽取，桌面版改为 import 复用。"""
+import re
+from datetime import datetime
+
+import db
+
+
+def safe_dirname(name):
+    """把合同名清洗为合法文件夹名（去 Windows 非法字符、截断）"""
+    s = re.sub(r'[\\/:*?"<>|]', '_', name or '').strip()
+    return s[:40] or '未命名合同'
+
+
+def num_to_cn(num):
+    """金额转中文大写"""
+    if num is None or num == '':
+        return ''
+    num = float(num)
+    digits = '零壹贰叁肆伍陆柒捌玖'
+    units = ['', '拾', '佰', '仟']
+    big_units = ['', '万', '亿']
+    num = round(num * 100) / 100
+    int_part = int(num)
+    dec_part = round((num - int_part) * 100)
+    int_str = str(int_part)
+    groups = []
+    while len(int_str) > 4:
+        groups.insert(0, int_str[-4:])
+        int_str = int_str[:-4]
+    groups.insert(0, int_str)
+    result = ''
+    need_zero = False
+    for g in range(len(groups)):
+        group = groups[g]
+        part = ''
+        zero_flag = False
+        for i in range(len(group)):
+            d = int(group[i])
+            pos = len(group) - 1 - i
+            if d == 0:
+                zero_flag = True
+            else:
+                if zero_flag:
+                    part += '零'
+                part += digits[d] + units[pos]
+                zero_flag = False
+        if part:
+            if need_zero:
+                result += '零'
+            result += part + big_units[len(groups) - 1 - g]
+            need_zero = False
+        else:
+            need_zero = True
+    if not result:
+        result = '零'
+    if dec_part == 0:
+        return result + '元整'
+    jiao = dec_part // 10
+    fen = dec_part % 10
+    if jiao == 0:
+        return result + '元零' + digits[fen] + '分'
+    if fen == 0:
+        return result + '元' + digits[jiao] + '角整'
+    return result + '元' + digits[jiao] + '角' + digits[fen] + '分'
+
+
+def build_report_context(c, pay_date, invoice_date, amount, invoice_no,
+                         stage, main_content='', remark=''):
+    """组装审批表渲染上下文（与桌面版 MainWindow._build_report_data 等价）。
+    返回 (context, stages, this_pay)；this_pay 为本次填报落在各期的金额。"""
+    extra = None
+    if amount > 0:
+        extra = {'id': 0, 'pay_date': pay_date, 'invoice_date': invoice_date,
+                 'stage': stage, 'amount': amount, 'invoice_no': invoice_no}
+    stages, _ = db.get_plan_status(c['id'], extra_record=extra)
+    base = stages
+    if amount > 0:
+        base, _ = db.get_plan_status(c['id'])
+    this_pay = [round(stages[i]['paid'] - base[i]['paid'], 2)
+                for i in range(len(stages))]
+
+    stats = db.get_contract_stats(c['id'])
+    ctx = {
+        '合同编号': c['contract_no'],
+        '合同名称': c['contract_name'],
+        '客户名称': c['customer_name'] or '',
+        '合同备注': main_content or c['remark'] or '',
+        '合同总额': c['total_amount'],
+        '合同总额大写': num_to_cn(c['total_amount']),
+        '已报销总额': f"{stats['paid']:,.2f}",
+        '剩余金额': f"{stats['remaining']:,.2f}",
+        '票据总额': amount,
+        '票据总额大写': num_to_cn(amount),
+        '本次金额': amount,
+        '大写金额': num_to_cn(amount),
+        '发票号': invoice_no,
+        '开票日期': invoice_date,
+        '报销日期': pay_date,
+        '阶段': stage,
+        '备注': remark,
+        '生成日期': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        '经办人': '',
+        '收款单位': c['payee'] or '',
+        '开户银行': c['bank_name'] or '',
+        '银行账号': c['bank_account'] or '',
+    }
+    sum_ratio = sum_amount = sum_paid = sum_this = 0.0
+    for i, s in enumerate(stages):
+        k = i + 1
+        ctx[f'付款计划_{k}_期数'] = s['seq']
+        ctx[f'付款计划_{k}_比例'] = s['ratio']
+        ctx[f'付款计划_{k}_金额'] = s['amount']
+        ctx[f'付款计划_{k}_已支付'] = base[i]['paid']
+        ctx[f'付款计划_{k}_本次支付'] = this_pay[i]
+        ctx[f'付款计划_{k}_付款依据'] = ';'.join(s['invoices'])
+        sum_ratio += s['ratio'] or 0
+        sum_amount += s['amount']
+        sum_paid += base[i]['paid']
+        sum_this += this_pay[i]
+    ctx['比例合计'] = sum_ratio
+    ctx['计划金额合计'] = sum_amount
+    ctx['已支付合计'] = sum_paid
+    ctx['本次支付合计'] = sum_this
+    return ctx, stages, this_pay
