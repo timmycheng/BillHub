@@ -29,11 +29,17 @@
 
   {# ===== 中栏：报销录入（P3）===== #}
   <section class="col col-mid">
-    <div class="placeholder">
-      <h3>🧾 本次报销录入</h3>
-      <p class="hint">OCR 上传 / 表单 / 生成审批表</p>
-      <span class="tag">P3 阶段</span>
+    {% if selected %}
+    <div id="payment-panel"><!-- 由合同详情的 OOB 交换填充 --></div>
+    {% else %}
+    <div id="payment-panel">
+      <div class="placeholder">
+        <h3>🧾 本次报销录入</h3>
+        <p class="hint">选择左侧合同后在此填报报销</p>
+        <span class="tag">P3</span>
+      </div>
     </div>
+    {% endif %}
   </section>
 
   {# ===== 右栏：审批表预览（P4）===== #}

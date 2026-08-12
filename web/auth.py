@@ -56,6 +56,11 @@ def admin_required(f):
     return wrapped
 
 
+def can_access_contract(contract):
+    """当前用户能否访问该合同：管理员或拥有者。"""
+    return current_user.is_admin or (contract.get('owner_id') == int(current_user.id))
+
+
 # ============ 登录 / 登出蓝图 ============
 auth_bp = Blueprint('auth', __name__)
 

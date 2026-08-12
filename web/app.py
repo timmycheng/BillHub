@@ -8,6 +8,8 @@ from web.auth import auth_bp, hash_password, login_manager
 from web.config import Config
 from web.routes.contracts import bp as contracts_bp
 from web.routes.main import main_bp
+from web.routes.ocr_api import bp as ocr_bp
+from web.routes.payments import bp as payments_bp
 
 
 def create_app(config_class=Config):
@@ -26,6 +28,8 @@ def create_app(config_class=Config):
     # 蓝图
     app.register_blueprint(auth_bp)
     app.register_blueprint(contracts_bp)
+    app.register_blueprint(payments_bp)
+    app.register_blueprint(ocr_bp)
     app.register_blueprint(main_bp)
 
     # 确保上传目录存在
