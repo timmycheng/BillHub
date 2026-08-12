@@ -7,6 +7,11 @@
   <div class="user-info">
     <span class="user-name">{{ current_user.display_name }}</span>
     {% if current_user.is_admin %}<span class="badge">管理员</span>{% endif %}
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('admin.users') }}" class="btn-ghost">用户管理</a>
+    <a href="{{ url_for('admin.backup') }}" class="btn-ghost">备份</a>
+    {% endif %}
+    <a href="{{ url_for('auth.change_password') }}" class="btn-ghost">修改密码</a>
     <a href="{{ url_for('auth.logout') }}" class="btn-ghost">退出</a>
   </div>
 </header>

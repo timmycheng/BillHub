@@ -25,6 +25,10 @@ class Config:
     LDAP_ENABLED = os.environ.get('LDAP_ENABLED', 'false').lower() == 'true'
     LDAP_URI = os.environ.get('LDAP_URI', '')
     LDAP_BASE_DN = os.environ.get('LDAP_BASE_DN', '')
+    LDAP_BIND_DN = os.environ.get('LDAP_BIND_DN', '')          # 搜索用服务账号（可选）
+    LDAP_BIND_PASSWORD = os.environ.get('LDAP_BIND_PASSWORD', '')
+    LDAP_USER_DN_TEMPLATE = os.environ.get('LDAP_USER_DN_TEMPLATE', '')  # 如 uid={user},ou=users,{BASE}
+    LDAP_SEARCH_FILTER = os.environ.get('LDAP_SEARCH_FILTER', '')
 
     # 首次启动自动种子的默认管理员（仅当 users 表为空时生效）
     DEFAULT_ADMIN_USERNAME = os.environ.get('BILLHUB_ADMIN_USER', 'admin')

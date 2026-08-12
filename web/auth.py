@@ -73,8 +73,29 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         user_row = db.get_user_by_username(username)
-        # P5 在此插入 LDAP 分支：本地命中失败且 LDAP_ENABLED → ldap3 bind
-        if user_row and verify_password(password, user_row.get('password_hash')):
+
+        # 通道 1：本地账号密码
+        ok = bool(user_row) and verify_password(password, user_row.get('password_hash'))
+        # 通道 2：LDAP/AD（本地验证失败或本地无此用户时尝试）
+        ad_info = None
+        if not ok:
+            from flask import current_app
+            from web.ldap_auth import ldap_authenticate
+            ad_info = ldap_authenticate(username, password, current_app.config)
+            if ad_info:
+                if user_row is None:
+                    # AD 首次登录自动建档（本地无密码，走 AD 通道）
+                    new_id = db.create_user(ad_info['username'], None,
+                                            ad_info.get('display_name', ''),
+                                            is_admin=0, ad_dn=ad_info.get('ad_dn'))
+                    if new_id:
+                        user_row = db.get_user(new_id)
+                else:
+                    # 已有本地记录：记录 AD DN（存在则保留本地 is_admin 配置）
+                    db.update_user(user_row['id'], ad_dn=ad_info.get('ad_dn'))
+                ok = user_row is not None
+
+        if ok and user_row:
             login_user(User(user_row))
             next_url = request.args.get('next') or url_for('main.dashboard')
             # 防开放重定向：只允许站内相对路径
@@ -91,3 +112,28 @@ def logout():
     logout_user()
     flash('已退出登录', 'info')
     return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/account/password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    user_row = db.get_user(int(current_user.id))
+    if not user_row.get('password_hash'):
+        # AD 账号无本地密码，提示走公司系统
+        flash('该账号使用 AD 认证，请通过公司系统修改密码', 'info')
+        return redirect(url_for('main.dashboard'))
+    if request.method == 'POST':
+        old = request.form.get('old_password', '')
+        new = request.form.get('new_password', '')
+        confirm = request.form.get('confirm_password', '')
+        if not verify_password(old, user_row.get('password_hash')):
+            flash('原密码错误', 'danger')
+        elif len(new) < 4:
+            flash('新密码至少 4 位', 'danger')
+        elif new != confirm:
+            flash('两次输入的新密码不一致', 'danger')
+        else:
+            db.update_user(int(current_user.id), password_hash=hash_password(new))
+            flash('密码已修改，请牢记', 'success')
+            return redirect(url_for('main.dashboard'))
+    return render_template('account/password.html')

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}用户管理{% endblock %}
+{% block header %}
+<header class="topbar">
+  <a href="{{ url_for('main.dashboard') }}" class="btn-ghost">‹ 返回</a>
+  <div class="brand">用户管理</div>
+  <div class="spacer"></div>
+  <a href="{{ url_for('admin.backup') }}" class="btn-ghost">💾 备份数据库</a>
+</header>
+{% endblock %}
+{% block body %}
+<div class="form-wrap">
+  <fieldset class="form-section">
+    <legend>新建用户</legend>
+    <form method="post">
+      <div class="form-grid">
+        <label class="field"><span>用户名 *</span>
+          <input type="text" name="username" required autocomplete="off"></label>
+        <label class="field"><span>初始密码 *（至少 4 位）</span>
+          <input type="text" name="password" required autocomplete="off"></label>
+        <label class="field"><span>显示名</span>
+          <input type="text" name="display_name"></label>
+        <label class="field check-row"><span>管理员</span>
+          <input type="checkbox" name="is_admin"></label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">创建</button>
+      </div>
+    </form>
+  </fieldset>
+
+  <fieldset class="form-section">
+    <legend>用户列表（{{ users|length }}）</legend>
+    <table class="users-table">
+      <thead><tr>
+        <th>ID</th><th>用户名</th><th>显示名</th><th>管理员</th>
+        <th>创建时间</th><th>操作</th>
+      </tr></thead>
+      <tbody>
+      {% for u in users %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <td>{{ u.username }}
+            {% if u.ad_dn %}<span class="badge">AD</span>{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('admin.users_edit', uid=u.id) }}" class="inline-form">
+              <input type="text" name="display_name" value="{{ u.display_name or '' }}" size="10">
+              <button type="submit" class="btn-ghost btn-sm">保存</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('admin.users_edit', uid=u.id) }}" class="inline-form">
+              <input type="checkbox" name="is_admin" {{ 'checked' if u.is_admin }}
+                     onchange="this.form.submit()">
+            </form>
+          </td>
+          <td>{{ u.created_at }}</td>
+          <td class="cell-actions">
+            <form method="post" action="{{ url_for('admin.users_password', uid=u.id) }}"
+                  class="inline-form">
+              <input type="text" name="password" placeholder="新密码" size="10" required>
+              <button type="submit" class="btn-ghost btn-sm">重置密码</button>
+            </form>
+            <form method="post" action="{{ url_for('admin.users_delete', uid=u.id) }}"
+                  onsubmit="return confirm('确定删除用户「{{ u.username }}」？')"
+                  style="display:inline">
+              <button type="submit" class="btn-danger btn-sm">删除</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </fieldset>
+</div>
+{% endblock %}

@@ -314,6 +314,19 @@ select { width: 100%; padding: 7px 10px; border: 1px solid var(--border);
 .doc-meta { text-align: right; color: var(--text-muted); font-size: 12px;
   margin-top: 10px; }
 
+/* ============ 用户管理 ============ */
+.form-wrap.narrow { max-width: 520px; }
+.users-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.users-table th, .users-table td { padding: 6px 8px; text-align: left;
+  border-bottom: 1px solid var(--border); }
+.users-table th { color: var(--text-muted); font-weight: 500; }
+.users-table .cell-actions { white-space: nowrap; }
+.users-table .cell-actions .inline-form { display: inline-flex; gap: 4px; margin-right: 8px; }
+.inline-form input[type="text"] {
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px;
+}
+.check-row { display: flex; align-items: center; gap: 8px; }
+
 /* 打印：只输出审批表正文，隐藏其余 UI */
 @media print {
   body * { visibility: hidden; }
