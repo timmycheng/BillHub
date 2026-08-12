@@ -6,6 +6,7 @@ from flask import Flask
 import db
 from web.auth import auth_bp, hash_password, login_manager
 from web.config import Config
+from web.routes.contracts import bp as contracts_bp
 from web.routes.main import main_bp
 
 
@@ -24,11 +25,20 @@ def create_app(config_class=Config):
 
     # 蓝图
     app.register_blueprint(auth_bp)
+    app.register_blueprint(contracts_bp)
     app.register_blueprint(main_bp)
 
     # 确保上传目录存在
     os.makedirs(app.config['INVOICE_DIR'], exist_ok=True)
     os.makedirs(app.config['REPORT_DIR'], exist_ok=True)
+
+    # Jinja 过滤器：金额千分位格式化（¥1,234.56）
+    @app.template_filter('money')
+    def _money(value):
+        try:
+            return '{:,.2f}'.format(float(value))
+        except (TypeError, ValueError):
+            return str(value)
 
     return app
 

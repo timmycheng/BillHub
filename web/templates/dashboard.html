@@ -13,13 +13,21 @@
 {% endblock %}
 {% block body %}
 <div class="dashboard">
+  {# ===== 左栏：合同列表（上）+ 详情（下）===== #}
   <section class="col col-left">
-    <div class="placeholder">
-      <h3>📑 合同</h3>
-      <p class="hint">合同列表 / 详情 / 付款计划</p>
-      <span class="tag">P2 阶段</span>
+    <div id="contract-list-panel"
+         hx-get="{{ url_for('contracts.list_panel') }}{% if selected %}?selected={{ selected }}{% endif %}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+      <p class="muted center pad">加载中…</p>
+    </div>
+    <div id="contract-info" class="info-card info-empty"
+         {% if selected %}hx-get="{{ url_for('contracts.info_panel', cid=selected) }}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML"{% endif %}>
+      {% if not selected %}<p class="muted center pad">请选择左侧合同查看详情</p>{% endif %}
     </div>
   </section>
+
+  {# ===== 中栏：报销录入（P3）===== #}
   <section class="col col-mid">
     <div class="placeholder">
       <h3>🧾 本次报销录入</h3>
@@ -27,6 +35,8 @@
       <span class="tag">P3 阶段</span>
     </div>
   </section>
+
+  {# ===== 右栏：审批表预览（P4）===== #}
   <section class="col col-right">
     <div class="placeholder">
       <h3>🖨 审批表预览</h3>
