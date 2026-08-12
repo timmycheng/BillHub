@@ -1,0 +1,38 @@
+{# 合同列表面板（HTMX 局部）—— 挂在 dashboard 左栏上 #}
+<div id="contract-list-panel">
+  <div class="panel-head">
+    <input type="text" name="q" value="{{ q }}" class="search-input"
+           placeholder="🔍 搜索合同编号 / 名称…"
+           hx-get="{{ url_for('contracts.list_panel') }}"
+           hx-trigger="keyup changed delay:300ms"
+           hx-target="#contract-list"
+           hx-select="#contract-list"
+           hx-swap="outerHTML"
+           hx-include="this">
+    <div class="list-actions">
+      <a href="{{ url_for('contracts.new') }}" class="btn-primary btn-sm">＋ 新增</a>
+      {% if current_user.is_admin %}
+      <a href="{{ url_for('contracts.export') }}" class="btn-ghost btn-sm">导出</a>
+      <button type="button" class="btn-ghost btn-sm"
+              onclick="document.getElementById('import-file').click()">导入</button>
+      <form method="post" action="{{ url_for('contracts.import_file') }}"
+            enctype="multipart/form-data" style="display:none">
+        <input id="import-file" type="file" name="file" accept=".xlsx"
+               onchange="this.form.submit()">
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <ul id="contract-list" class="contract-list">
+    {% for c in contracts %}
+    <li class="contract-item {{ 'selected' if c.id == selected }}"
+        hx-get="{{ url_for('contracts.info_panel', cid=c.id) }}"
+        hx-target="#contract-info" hx-swap="outerHTML">
+      <span class="c-no">{{ c.contract_no or '(未编号)' }}</span>
+      <span class="c-name">{{ c.contract_name }}</span>
+    </li>
+    {% else %}
+    <li class="empty-hint">{{ '无匹配合同' if q else '暂无合同，点击「新增」开始' }}</li>
+    {% endfor %}
+  </ul>
+</div>
