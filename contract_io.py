@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SmartBill - 合同清单批量导入导出（.xlsx）"""
+"""BillHub - 合同清单批量导入导出（.xlsx）"""
 import os
 import re
 from datetime import datetime, date

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""WZBill - 将构建产物分卷(7z)逐卷通过 SMTP 发送到指定邮箱。
+"""BillHub - 将构建产物分卷(7z)逐卷通过 SMTP 发送到指定邮箱。
 
 只依赖 Python 标准库（smtplib + email.mime）。所有配置从环境变量读取，
 由 GitHub Actions 注入，仓库内不含任何明文凭证。
@@ -11,7 +11,7 @@
     SMTP_PASS     SMTP 授权码（QQ 邮箱设置里生成，非登录密码）
     MAIL_TO       收件人地址
     SPLIT_DIR     存放 7z 分卷的目录
-    MAIL_SUBJECT  邮件主题前缀（可选，默认 "WZBill 构建产物"）
+    MAIL_SUBJECT  邮件主题前缀（可选，默认 "BillHub 构建产物"）
 """
 import glob
 import os
@@ -43,7 +43,7 @@ def load_config():
         'password': os.environ['SMTP_PASS'],
         'to': os.environ['MAIL_TO'],
         'split_dir': os.environ['SPLIT_DIR'],
-        'subject_prefix': os.environ.get('MAIL_SUBJECT', 'WZBill 构建产物'),
+        'subject_prefix': os.environ.get('MAIL_SUBJECT', 'BillHub 构建产物'),
     }
 
 
@@ -57,14 +57,14 @@ def send_part(cfg, path, index, total):
     filename = os.path.basename(path)
 
     msg = MIMEMultipart()
-    msg['From'] = formataddr(('WZBill CI', cfg['user']))
+    msg['From'] = formataddr(('BillHub CI', cfg['user']))
     msg['To'] = cfg['to']
     msg['Subject'] = Header(f'{cfg["subject_prefix"]} - 第 {index}/{total} 卷 ({filename})', 'utf-8')
 
     body = (
-        f'WZBill 构建产物分卷 第 {index}/{total} 卷\n'
+        f'BillHub 构建产物分卷 第 {index}/{total} 卷\n'
         f'附件: {filename}\n\n'
-        '请将全部卷收齐后，用 7-Zip 选中第一个文件 WZBill.7z.001 解压，即可合并得到 WZBill.exe。\n'
+        '请将全部卷收齐后，用 7-Zip 选中第一个文件 BillHub.7z.001 解压，即可合并得到 BillHub.exe。\n'
         '若任一卷缺失，请到 GitHub Actions 的 artifacts 中重新下载。'
     )
     msg.attach(MIMEText(body, 'plain', 'utf-8'))

@@ -1,42 +1,37 @@
-# WZBill
+# BillHub
 
-发票 / 审批 / 报销一体化处理工具（PyQt6 + RapidOCR + PyInstaller 打包为 Windows exe）。
+发票 / 审批 / 报销一体化处理工具。合同管理 + 智能报销生成 + OCR 识别 + 模板驱动。
 
-## 本地开发
+支持两种形态：
+- **桌面版**（PyQt6 + RapidOCR + PyInstaller 打包为 Windows exe）
+- **Web 版**（Flask + Jinja2，内网多人共享，Docker 部署）—— 规划中，见 [改造方案](./BillHub-改造方案.md)
+
+## 本地开发（桌面版）
 
 ```bash
 uv sync            # 或 pip install -r requirements.txt
-python main.py     # 启动应用
+python main.py     # 启动桌面应用
 ```
 
-## 打包 exe
+## 打包桌面 exe
 
 ```bash
 build_exe.bat      # 自动安装依赖、拷贝 OCR 模型并执行 PyInstaller
 ```
 
-产物：`dist/WZBill.exe`（onefile，windowed）。`models/` 与运行数据（`bill.db`、发票）不入库。
+产物：`dist/BillHub.exe`（onefile，windowed）。`models/` 与运行数据（`bill.db`、发票）不入库。
 
-## CI/CD：push 后自动打包并邮件分发
+## 数据存储
 
-`.github/workflows/build-and-email.yml` 在 push 到 `main`（或手动触发）时执行：
+完全离线运行，数据存储于本地 SQLite（`bill.db`）。可通过环境变量 `BILLHUB_DB` 指定数据库路径（Web 版 / Docker 部署用）。
 
-1. 在 `windows-latest` 上安装依赖、拷贝 OCR 模型、`pyinstaller WZBill.spec` 打包
-2. 用 7-Zip 把 exe 分卷压成 ≤30MB 的 `WZBill.7z.001/.002/…`
-3. 分卷同时上传到 GitHub Actions artifacts（备份）
-4. `scripts/send_email.py` 把每个分卷单独发一封邮件到 `12305@wzbank.cn`
+## CI/CD
 
-### 首次使用需配置 GitHub Secrets
+push 到 `main`（或手动触发）时自动构建并发布：
 
-仓库 `Settings → Secrets and variables → Actions` 添加：
+- **桌面版**：在 `windows-latest` 上 PyInstaller 打包 `BillHub.exe`
+- **Web 版镜像**：在 `ubuntu-latest` 构建 Docker 镜像并导出为 tar（供离线内网 `docker load`）
 
-| Secret | 值 |
-|---|---|
-| `SMTP_USER` | 发件 QQ 邮箱完整地址（如 `xxx@qq.com`） |
-| `SMTP_PASS` | QQ 邮箱**授权码**（`设置→账户→POP3/SMTP 服务` 生成，非登录密码） |
+详细设计见 [BillHub-改造方案.md](./BillHub-改造方案.md)。
 
-收件人 `12305@wzbank.cn` 固定在 workflow 中，如需修改只改 `build-and-email.yml` 里的 `MAIL_TO`。
-
-### 收件人如何解压分卷
-
-收齐全部卷（`.001`、`.002`、…）后，用 7-Zip 选中 `WZBill.7z.001` → 解压，自动合并出 `WZBill.exe`。
+> 邮件分发功能目前暂停，相关脚本保留在 `scripts/` 下，待稳定后恢复。

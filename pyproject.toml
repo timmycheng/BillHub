@@ -1,7 +1,7 @@
 [project]
-name = "wzbill"
-version = "0.1.0"
-description = "Add your description here"
+name = "billhub"
+version = "1.2.0"
+description = "BillHub —— 合同/发票/审批/报销一体化处理工具（桌面版 PyQt6 + Web 版 Flask）"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

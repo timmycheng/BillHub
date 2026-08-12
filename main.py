@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""WZBill —— 智能行项目结算报销工具
+"""BillHub —— 智能行项目结算报销工具
 PyQt6 桌面端：合同管理 + 智能报销生成 + OCR 识别 + 模板驱动
 """
 import os
@@ -265,7 +265,7 @@ class ContractDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('WZBill —— 智能行项目结算报销工具')
+        self.setWindowTitle('BillHub —— 智能行项目结算报销工具')
         self.resize(1400, 800)
         self.current_contract = None
         self.template_path = DEFAULT_TEMPLATE
@@ -299,7 +299,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction(exit_act)
 
         help_menu = bar.addMenu('关于(&H)')
-        about_act = QAction('关于 WZBill', self)
+        about_act = QAction('关于 BillHub', self)
         about_act.triggered.connect(self.show_about)
         help_menu.addAction(about_act)
 
@@ -1007,9 +1007,9 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, '失败', str(e))
 
     def show_about(self):
-        QMessageBox.about(self, '关于 WZBill',
-            'WZBill —— 智能行项目结算报销工具\n\n'
-            '版本：1.1.0\n'
+        QMessageBox.about(self, '关于 BillHub',
+            'BillHub —— 智能行项目结算报销工具\n\n'
+            '版本：1.2.0\n'
             '功能：合同管理（付款计划 / 分类 / 收款信息）\n'
             '      OCR 发票识别（图片 / PDF）\n'
             '      模板驱动审批表生成（统一归档）\n'

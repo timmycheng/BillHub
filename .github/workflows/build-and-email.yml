@@ -32,7 +32,7 @@ jobs:
         run: python -c "import rapidocr_onnxruntime, os, shutil; src=os.path.join(os.path.dirname(rapidocr_onnxruntime.__file__),'models'); dst=os.path.join(os.getcwd(),'models'); os.makedirs(dst,exist_ok=True); [shutil.copy2(os.path.join(src,f),os.path.join(dst,f)) for f in os.listdir(src) if f.endswith('.onnx')]; print('[OK] Models copied')"
 
       - name: Build exe with PyInstaller
-        run: pyinstaller --noconfirm --clean WZBill.spec
+        run: pyinstaller --noconfirm --clean BillHub.spec
 
       - name: Split exe into 30MB parts
         shell: pwsh
@@ -44,14 +44,14 @@ jobs:
             $sevenZip = 'C:\Program Files\7-Zip\7z.exe'
           }
           if (-not (Test-Path 'release')) { New-Item -ItemType Directory -Path 'release' | Out-Null }
-          & $sevenZip a -t7z -v30m -mx=9 release/WZBill.7z dist/WZBill.exe
+          & $sevenZip a -t7z -v30m -mx=9 release/BillHub.7z dist/BillHub.exe
           if ($LASTEXITCODE -ne 0) { throw "7z failed with exit code $LASTEXITCODE" }
           Get-ChildItem release | Select-Object Name, Length
 
       - name: Upload parts as artifacts (backup)
         uses: actions/upload-artifact@v4
         with:
-          name: WZBill-parts
+          name: BillHub-parts
           path: release/
 
       - name: Publish GitHub Release
@@ -63,8 +63,8 @@ jobs:
           $version = python -c "import re; print(re.search(r'版本：([0-9.]+)', open('main.py', encoding='utf-8').read()).group(1))"
           $tag = "v$version"
           if (gh release view $tag --json tagName 2>$null) { gh release delete $tag --yes --cleanup-tag }
-          gh release create $tag dist/WZBill.exe `
-            --title "WZBill $version" `
+          gh release create $tag dist/BillHub.exe `
+            --title "BillHub $version" `
             --generate-notes
           Write-Host "Released $tag"
 
@@ -75,7 +75,7 @@ jobs:
           SMTP_PORT: "465"
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          MAIL_TO: 12305@wzbank.cn
+          MAIL_TO: your-recipient@example.com
           SPLIT_DIR: release
           PYTHONIOENCODING: utf-8
         run: python scripts/send_email.py
