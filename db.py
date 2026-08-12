@@ -400,8 +400,8 @@ def get_plan_status(cid, extra_record=None):
 
 
 def backup_db():
-    """备份数据库 bill_backup_YYYYMMDD.db"""
-    ts = datetime.now().strftime('%Y%m%d')
+    """备份数据库 bill_backup_YYYYMMDD_HHMMSS_mmm.db（微秒时间戳防重名）"""
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
     backup = os.path.join(os.path.dirname(DB_PATH), f'bill_backup_{ts}.db')
     conn = get_conn()
     conn.execute(f"VACUUM INTO '{backup}'")
