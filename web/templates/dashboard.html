@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}工作台{% endblock %}
+{% block header %}
+<header class="topbar">
+  <div class="brand">BillHub</div>
+  <div class="spacer"></div>
+  <div class="user-info">
+    <span class="user-name">{{ current_user.display_name }}</span>
+    {% if current_user.is_admin %}<span class="badge">管理员</span>{% endif %}
+    <a href="{{ url_for('auth.logout') }}" class="btn-ghost">退出</a>
+  </div>
+</header>
+{% endblock %}
+{% block body %}
+<div class="dashboard">
+  <section class="col col-left">
+    <div class="placeholder">
+      <h3>📑 合同</h3>
+      <p class="hint">合同列表 / 详情 / 付款计划</p>
+      <span class="tag">P2 阶段</span>
+    </div>
+  </section>
+  <section class="col col-mid">
+    <div class="placeholder">
+      <h3>🧾 本次报销录入</h3>
+      <p class="hint">OCR 上传 / 表单 / 生成审批表</p>
+      <span class="tag">P3 阶段</span>
+    </div>
+  </section>
+  <section class="col col-right">
+    <div class="placeholder">
+      <h3>🖨 审批表预览</h3>
+      <p class="hint">HTML 预览 / 打印 / 下载 Excel</p>
+      <span class="tag">P4 阶段</span>
+    </div>
+  </section>
+</div>
+{% endblock %}

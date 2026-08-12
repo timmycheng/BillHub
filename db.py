@@ -22,6 +22,7 @@ def get_conn():
 
 def init_db():
     conn = get_conn()
+    conn.execute('PRAGMA journal_mode=WAL')  # 并发读优化（持久化到 db 文件）
     conn.executescript('''
     CREATE TABLE IF NOT EXISTS contracts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,11 +65,22 @@ def init_db():
         FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE,
         UNIQUE (contract_id, seq)
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,         -- 登录名
+        password_hash TEXT,                    -- 本地账号密码哈希（AD 用户留空）
+        display_name TEXT,                     -- 显示名
+        is_admin INTEGER DEFAULT 0,            -- 管理员绕过经办人隔离
+        ad_dn TEXT,                            -- LDAP distinguishedName，启用 AD 时用
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
     ''')
     conn.commit()
     conn.close()
     _migrate_contracts()
     _migrate_payments()
+    _migrate_users()
 
 
 _NEW_COLUMNS = {  # 增量迁移：列名 -> 定义
@@ -88,6 +100,22 @@ def _migrate_payments():
         for name in ('invoice_date', 'invoice_file', 'report_file'):
             if name not in cols:
                 conn.execute(f'ALTER TABLE payment_records ADD COLUMN {name} TEXT')
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _migrate_users():
+    """增量迁移：contracts 加 owner_id，payment_records 加 user_id（引用 users 表）。
+    桌面版不传这两个字段，默认 NULL（管理员视角可见全部）。"""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cols = {r[1] for r in conn.execute('PRAGMA table_info(contracts)').fetchall()}
+        if 'owner_id' not in cols:
+            conn.execute('ALTER TABLE contracts ADD COLUMN owner_id INTEGER REFERENCES users(id)')
+        cols = {r[1] for r in conn.execute('PRAGMA table_info(payment_records)').fetchall()}
+        if 'user_id' not in cols:
+            conn.execute('ALTER TABLE payment_records ADD COLUMN user_id INTEGER REFERENCES users(id)')
         conn.commit()
     finally:
         conn.close()
@@ -137,16 +165,16 @@ def _migrate_contracts():
 
 # ============ 合同 CRUD ============
 def add_contract(contract_no, contract_name, customer_name, total_amount, sign_date='', remark='',
-                 contract_manager='', category='', payee='', bank_name='', bank_account=''):
+                 contract_manager='', category='', payee='', bank_name='', bank_account='', owner_id=None):
     conn = get_conn()
     try:
         cur = conn.execute(
             'INSERT INTO contracts (contract_no, contract_name, customer_name, contract_manager, '
-            'category, payee, bank_name, bank_account, total_amount, sign_date, remark) '
-            'VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+            'category, payee, bank_name, bank_account, total_amount, sign_date, remark, owner_id) '
+            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
             (contract_no.strip() or None, contract_name, customer_name, contract_manager,
              category, payee, bank_name, bank_account, float(total_amount),
-             sign_date, remark))
+             sign_date, remark, owner_id))
         conn.commit()
         return cur.lastrowid
     except sqlite3.IntegrityError:
@@ -156,15 +184,15 @@ def add_contract(contract_no, contract_name, customer_name, total_amount, sign_d
 
 
 def update_contract(cid, contract_no, contract_name, customer_name, total_amount, sign_date='', remark='',
-                    contract_manager='', category='', payee='', bank_name='', bank_account=''):
+                    contract_manager='', category='', payee='', bank_name='', bank_account='', owner_id=None):
     conn = get_conn()
     conn.execute(
         'UPDATE contracts SET contract_no=?, contract_name=?, customer_name=?, contract_manager=?, '
-        'category=?, payee=?, bank_name=?, bank_account=?, total_amount=?, sign_date=?, remark=? '
-        'WHERE id=?',
+        'category=?, payee=?, bank_name=?, bank_account=?, total_amount=?, sign_date=?, remark=?, '
+        'owner_id=? WHERE id=?',
         (contract_no.strip() or None, contract_name, customer_name, contract_manager,
          category, payee, bank_name, bank_account, float(total_amount),
-         sign_date, remark, cid))
+         sign_date, remark, owner_id, cid))
     conn.commit()
     conn.close()
 
@@ -176,9 +204,14 @@ def delete_contract(cid):
     conn.close()
 
 
-def list_contracts():
+def list_contracts(owner_id=None):
+    """合同列表。传 owner_id 只返回该用户的合同；不传返回全部（管理员视角）。"""
     conn = get_conn()
-    rows = conn.execute('SELECT * FROM contracts ORDER BY id DESC').fetchall()
+    if owner_id is not None:
+        rows = conn.execute(
+            'SELECT * FROM contracts WHERE owner_id=? ORDER BY id DESC', (owner_id,)).fetchall()
+    else:
+        rows = conn.execute('SELECT * FROM contracts ORDER BY id DESC').fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -192,13 +225,13 @@ def get_contract(cid):
 
 # ============ 支付记录 ============
 def add_payment(contract_id, pay_date, stage, amount, invoice_no='', invoice_date='',
-                remark='', invoice_file='', report_file=''):
+                remark='', invoice_file='', report_file='', user_id=None):
     conn = get_conn()
     cur = conn.execute(
         'INSERT INTO payment_records (contract_id, pay_date, invoice_date, stage, amount, '
-        'invoice_no, remark, invoice_file, report_file) VALUES (?,?,?,?,?,?,?,?,?)',
+        'invoice_no, remark, invoice_file, report_file, user_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
         (contract_id, pay_date, invoice_date or '', stage, float(amount), invoice_no,
-         remark, invoice_file, report_file))
+         remark, invoice_file, report_file, user_id))
     conn.commit()
     conn.close()
     return cur.lastrowid
@@ -367,3 +400,76 @@ def backup_db():
     conn.execute(f"VACUUM INTO '{backup}'")
     conn.close()
     return backup
+
+
+# ============ 用户 CRUD ============
+def create_user(username, password_hash, display_name='', is_admin=0, ad_dn=''):
+    """新建用户。username 重复返回 None。password_hash 由调用方（web/auth.py）用
+    werkzeug 预先哈希，db 层不依赖 werkzeug。"""
+    conn = get_conn()
+    try:
+        cur = conn.execute(
+            'INSERT INTO users (username, password_hash, display_name, is_admin, ad_dn) '
+            'VALUES (?,?,?,?,?)',
+            (username.strip(), password_hash, display_name, int(bool(is_admin)), ad_dn))
+        conn.commit()
+        return cur.lastrowid
+    except sqlite3.IntegrityError:
+        return None
+    finally:
+        conn.close()
+
+
+def get_user(user_id):
+    conn = get_conn()
+    row = conn.execute('SELECT * FROM users WHERE id=?', (user_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_username(username):
+    conn = get_conn()
+    row = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def list_users():
+    conn = get_conn()
+    rows = conn.execute('SELECT * FROM users ORDER BY id').fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def count_users():
+    """用户总数（用于首次启动时自动种子管理员）"""
+    conn = get_conn()
+    row = conn.execute('SELECT COUNT(*) AS n FROM users').fetchone()
+    conn.close()
+    return row['n'] if row else 0
+
+
+def update_user(user_id, display_name=None, is_admin=None, password_hash=None, ad_dn=None):
+    """部分更新用户；仅传需要修改的字段。"""
+    conn = get_conn()
+    fields, params = [], []
+    if display_name is not None:
+        fields.append('display_name=?'); params.append(display_name)
+    if is_admin is not None:
+        fields.append('is_admin=?'); params.append(int(bool(is_admin)))
+    if password_hash is not None:
+        fields.append('password_hash=?'); params.append(password_hash)
+    if ad_dn is not None:
+        fields.append('ad_dn=?'); params.append(ad_dn)
+    if fields:
+        params.append(user_id)
+        conn.execute(f'UPDATE users SET {",".join(fields)} WHERE id=?', params)
+        conn.commit()
+    conn.close()
+
+
+def delete_user(user_id):
+    conn = get_conn()
+    conn.execute('DELETE FROM users WHERE id=?', (user_id,))
+    conn.commit()
+    conn.close()
