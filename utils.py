@@ -66,16 +66,18 @@ def num_to_cn(num):
 
 
 def build_report_context(c, pay_date, invoice_date, amount, invoice_no,
-                         stage, main_content='', remark=''):
+                         stage, main_content='', remark='', include_virtual=True):
     """组装审批表渲染上下文（与桌面版 MainWindow._build_report_data 等价）。
+    include_virtual=True：金额>0 时叠加一条虚拟本次记录用于预览（未落库）。
     返回 (context, stages, this_pay)；this_pay 为本次填报落在各期的金额。"""
-    extra = None
-    if amount > 0:
+    if include_virtual and amount > 0:
         extra = {'id': 0, 'pay_date': pay_date, 'invoice_date': invoice_date,
                  'stage': stage, 'amount': amount, 'invoice_no': invoice_no}
-    stages, _ = db.get_plan_status(c['id'], extra_record=extra)
+        stages, _ = db.get_plan_status(c['id'], extra_record=extra)
+    else:
+        stages, _ = db.get_plan_status(c['id'])
     base = stages
-    if amount > 0:
+    if include_virtual and amount > 0:
         base, _ = db.get_plan_status(c['id'])
     this_pay = [round(stages[i]['paid'] - base[i]['paid'], 2)
                 for i in range(len(stages))]
@@ -122,4 +124,17 @@ def build_report_context(c, pay_date, invoice_date, amount, invoice_no,
     ctx['计划金额合计'] = sum_amount
     ctx['已支付合计'] = sum_paid
     ctx['本次支付合计'] = sum_this
+    return ctx, stages, this_pay
+
+
+def build_record_preview(c, rec):
+    """已保存支付记录的预览上下文：不叠加虚拟记录（该记录已在库中），
+    本次支付 = 该记录自身的分期分配。返回 (ctx, stages, this_pay)。"""
+    ctx, stages, _ = build_report_context(
+        c, rec['pay_date'], rec.get('invoice_date') or '', rec['amount'],
+        rec.get('invoice_no') or '', rec.get('stage') or '', '',
+        rec.get('remark') or '', include_virtual=False)
+    plan_rows = db.list_payment_plan(c['id'])
+    paid, _, _ = db.compute_stage_alloc(plan_rows, [rec])
+    this_pay = [round(x, 2) for x in paid]
     return ctx, stages, this_pay

@@ -48,6 +48,9 @@
 
       <div class="pay-actions">
         <button type="submit" class="btn-primary">📥 生成报销单 Excel</button>
+        <button type="button" class="btn-ghost"
+                hx-post="{{ url_for('preview.draft') }}" hx-include="#pay-form"
+                hx-target="#approval-preview" hx-swap="outerHTML">👁 预览本次</button>
         <button type="reset" class="btn-ghost">🔄 重置</button>
       </div>
     </form>
@@ -75,6 +78,9 @@
               {% else %}—{% endif %}</td>
           <td class="cell-remark" title="{{ rec.remark }}">{{ rec.remark or '' }}</td>
           <td class="cell-actions">
+            <button type="button" class="btn-ghost btn-sm"
+                    hx-get="{{ url_for('preview.saved', pid=rec.id) }}"
+                    hx-target="#approval-preview" hx-swap="outerHTML">👁 预览</button>
             {% if rec.report_file %}
             <a href="{{ url_for('payments.download_report', pid=rec.id) }}" class="btn-ghost btn-sm">📥 Excel</a>
             {% endif %}

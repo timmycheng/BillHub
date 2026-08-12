@@ -1,0 +1,97 @@
+{# 右栏审批表预览（HTMX 局部）—— 仿 xlsx 模板「合同支付审批表」排版 #}
+<div id="approval-preview" class="preview-wrap">
+  <div class="preview-toolbar no-print">
+    <button type="button" class="btn-primary btn-sm" onclick="window.print()">🖨 直接打印</button>
+    {% if report_exists %}
+    <a href="{{ url_for('payments.download_report', pid=pid) }}" class="btn-ghost btn-sm">📥 查看 Excel</a>
+    {% endif %}
+    <span class="small muted">打印后请人工核对金额！</span>
+  </div>
+
+  {% if error %}
+  <div class="placeholder">
+    <h3>🖨 审批表预览</h3>
+    <p class="hint">{{ error }}</p>
+  </div>
+  {% else %}
+  <div class="approval-doc">
+    <h1 class="doc-title">合同支付审批表</h1>
+    <table class="doc-table">
+      <tr>
+        <td class="lbl">合同号：</td>
+        <td class="val" colspan="5">{{ ctx['合同编号'] or '' }}</td>
+      </tr>
+      <tr>
+        <td class="val" colspan="6">合同名称：{{ ctx['合同名称'] }}</td>
+      </tr>
+      <tr>
+        <td class="val" colspan="6">签约单位：{{ ctx['客户名称'] }}</td>
+      </tr>
+      <tr>
+        <td class="val" colspan="6">主要内容：{{ ctx['合同备注'] }}</td>
+      </tr>
+      <tr>
+        <td class="val" colspan="6">合同总额（小写）：¥{{ ctx['合同总额']|money }}（大写）：{{ ctx['合同总额大写'] }}</td>
+      </tr>
+      <tr>
+        <td class="val" colspan="6">本次提交票据总额（小写）：¥{{ ctx['票据总额']|money }}（大写）：{{ ctx['票据总额大写'] }}</td>
+      </tr>
+
+      <tr class="plan-head">
+        <th rowspan="2">期数</th>
+        <th colspan="2">合同支付比例</th>
+        <th colspan="2">计划金额</th>
+        <th rowspan="2">付款依据（含发票/收据号码）</th>
+      </tr>
+      <tr class="plan-head">
+        <th>比例</th>
+        <th>金额</th>
+        <th>已支付金额</th>
+        <th>本次支付金额</th>
+      </tr>
+      {% for s in stages %}
+      <tr>
+        <td class="c">{{ s.seq }}</td>
+        <td class="c">{{ '%g'|format(s.ratio * 100) if s.ratio is not none else '—' }}%</td>
+        <td class="r">¥{{ s.amount|money }}</td>
+        <td class="r">¥{{ s.paid|money }}</td>
+        <td class="r">¥{{ this_pay[loop.index0]|money }}</td>
+        <td class="c">{{ s.invoices|join(';') }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td class="c" colspan="6">（未设置付款计划）</td>
+      </tr>
+      {% endfor %}
+      <tr class="plan-total">
+        <td>合计</td>
+        <td class="c">{{ '%g'|format(ctx['比例合计'] * 100) }}%</td>
+        <td class="r">¥{{ ctx['计划金额合计']|money }}</td>
+        <td class="r">¥{{ ctx['已支付合计']|money }}</td>
+        <td class="r">¥{{ ctx['本次支付合计']|money }}</td>
+        <td></td>
+      </tr>
+
+      <tr>
+        <td class="val" colspan="6">经办人：</td>
+      </tr>
+      <tr>
+        <td class="lbl">收款单位全称：</td>
+        <td class="val" colspan="5">{{ ctx['收款单位'] }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">开户银行：</td>
+        <td class="val" colspan="2">{{ ctx['开户银行'] }}</td>
+        <td class="val" colspan="3">银行账号：{{ ctx['银行账号'] }}</td>
+      </tr>
+      <tr>
+        <td class="val" colspan="6">本次需支付金额（小写）：¥{{ ctx['本次金额']|money }}（大写）：{{ ctx['大写金额'] }}</td>
+      </tr>
+      <tr>
+        <td class="val" colspan="6">付款单位说明：{{ ctx['备注'] }}</td>
+      </tr>
+    </table>
+    <p class="doc-meta">{{ ctx['生成日期'] }}</p>
+  </div>
+  {% endif %}
+</div>

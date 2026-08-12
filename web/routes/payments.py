@@ -111,12 +111,12 @@ def create():
         except OSError:
             invoice_file = ''
 
-    db.add_payment(contract_id=cid, pay_date=pay_date, invoice_date=invoice_date,
-                   stage=stage, amount=amount, invoice_no=invoice_no, remark=remark,
-                   invoice_file=invoice_file, report_file=out_path,
-                   user_id=int(current_user.id))
+    new_pid = db.add_payment(contract_id=cid, pay_date=pay_date, invoice_date=invoice_date,
+                             stage=stage, amount=amount, invoice_no=invoice_no, remark=remark,
+                             invoice_file=invoice_file, report_file=out_path,
+                             user_id=int(current_user.id))
     flash('✅ 审批表已生成并保存记录！', 'success')
-    return redirect(url_for('main.dashboard', selected=cid))
+    return redirect(url_for('main.dashboard', selected=cid, preview=new_pid))
 
 
 # ============ 删除记录 ============

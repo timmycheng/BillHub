@@ -9,4 +9,5 @@ main_bp = Blueprint('main', __name__)
 @login_required
 def dashboard():
     selected = request.args.get('selected', type=int)
-    return render_template('dashboard.html', selected=selected)
+    preview = request.args.get('preview', type=int)
+    return render_template('dashboard.html', selected=selected, preview=preview)
