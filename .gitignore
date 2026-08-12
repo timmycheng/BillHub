@@ -11,7 +11,10 @@ wheels/
 
 # Runtime data & business files (not committed)
 bill.db
+bill_backup_*.db
 invoices/
+uploads/
+data/
 test/
 models/
 
@@ -22,4 +25,8 @@ models/
 
 # CI split output
 release/
+
+# Docker build output
+*.tar.zst
+*.tar.gz
 

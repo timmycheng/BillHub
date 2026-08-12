@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SmartBill - 模板引擎
+"""BillHub - 模板引擎
 支持 {{占位符}} 替换，格式与代码解耦。
 """
 import copy

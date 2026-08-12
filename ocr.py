@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SmartBill - OCR 智能识别模块
+"""BillHub - OCR 智能识别模块
 使用 RapidOCR 提取发票/收据关键信息：金额、日期、发票号。
 """
 import os

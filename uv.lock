@@ -850,8 +850,8 @@ wheels = [
 ]
 
 [[package]]
-name = "wzbill"
-version = "0.1.0"
+name = "billhub"
+version = "1.2.0"
 source = { virtual = "." }
 dependencies = [
     { name = "flask" },

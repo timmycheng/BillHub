@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SmartBill - SQLite 数据层
+"""BillHub - SQLite 数据层
 表结构：
   contracts       合同信息表
   payment_records 支付进度表
@@ -9,7 +9,8 @@ import os
 import re
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bill.db')
+DB_PATH = os.environ.get('BILLHUB_DB') or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'bill.db')
 
 
 def get_conn():

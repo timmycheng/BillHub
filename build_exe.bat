@@ -1,12 +1,12 @@
 @echo off
 REM ============================================
-REM WZBill - Windows Build Script
+REM BillHub - Windows Build Script
 REM Run on a Windows PC WITH internet access
-REM Produces: dist\WZBill.exe
+REM Produces: dist\BillHub.exe
 REM ============================================
 echo.
 echo ==========================================
-echo   Building WZBill (one-file exe)
+echo   Building BillHub (one-file exe)
 echo ==========================================
 echo.
 
@@ -38,7 +38,7 @@ if %errorlevel% neq 0 (
 
 REM 4. PyInstaller build (windowed mode: no console)
 echo [3/3] Building exe (2-4 minutes)...
-pyinstaller --noconfirm --onefile --windowed --name WZBill ^
+pyinstaller --noconfirm --onefile --windowed --name BillHub ^
   --add-data "templates;templates" ^
   --add-data "models;models" ^
   --hidden-import PyQt6.QtCore ^
@@ -59,10 +59,10 @@ if %errorlevel% neq 0 (
 echo.
 echo ==========================================
 echo   BUILD COMPLETE!
-echo   File: dist\WZBill.exe
+echo   File: dist\BillHub.exe
 echo.
 echo   Usage:
-echo   1. Copy WZBill.exe to the offline PC
+echo   1. Copy BillHub.exe to the offline PC
 echo   2. Double-click to run
 echo   3. Data saved to bill.db next to exe
 echo   4. Reports auto-saved to "bill-shenpi" folder
