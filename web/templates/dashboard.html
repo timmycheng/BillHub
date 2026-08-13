@@ -5,14 +5,25 @@
   <div class="brand">BillHub · 合同管理</div>
   <div class="spacer"></div>
   <div class="user-info">
-    <span class="user-name">{{ current_user.display_name }}</span>
-    {% if current_user.is_admin %}<span class="badge">管理员</span>{% endif %}
     {% if current_user.is_admin %}
-    <a href="{{ url_for('admin.users') }}" class="btn-ghost">用户管理</a>
-    <a href="{{ url_for('admin.backup') }}" class="btn-ghost">备份</a>
+    <span class="badge">管理员</span>
+    <div class="dropdown" id="admin-menu">
+      <button type="button" class="btn-ghost dropdown-toggle"
+              onclick="toggleDropdown('admin-menu')">管理 ▾</button>
+      <div class="dropdown-menu">
+        <a href="{{ url_for('admin.users') }}">👥 用户管理</a>
+        <a href="{{ url_for('admin.backup') }}">💾 备份数据库</a>
+      </div>
+    </div>
     {% endif %}
-    <a href="{{ url_for('auth.change_password') }}" class="btn-ghost">修改密码</a>
-    <a href="{{ url_for('auth.logout') }}" class="btn-ghost">退出</a>
+    <div class="dropdown" id="user-menu">
+      <button type="button" class="btn-ghost dropdown-toggle"
+              onclick="toggleDropdown('user-menu')">{{ current_user.display_name }} ▾</button>
+      <div class="dropdown-menu">
+        <a href="{{ url_for('auth.change_password') }}">🔑 修改密码</a>
+        <a href="{{ url_for('auth.logout') }}">🚪 退出登录</a>
+      </div>
+    </div>
   </div>
 </header>
 {% endblock %}

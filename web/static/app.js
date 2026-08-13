@@ -10,11 +10,12 @@ function closeModal(id) {
     document.body.classList.remove('modal-open');
   }
 }
-// ESC 关闭最上层弹窗
+// ESC 关闭最上层弹窗，其次关闭下拉菜单
 document.addEventListener('keydown', function (e) {
   if (e.key !== 'Escape') return;
   var mods = document.querySelectorAll('.modal:not([hidden])');
-  if (mods.length) closeModal(mods[mods.length - 1].id);
+  if (mods.length) { closeModal(mods[mods.length - 1].id); return; }
+  document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
 });
 
 // 打开报销弹窗（HTMX 加载表单）
@@ -34,3 +35,18 @@ function toggleExpand(cid) {
   var row = document.getElementById('expand-row-' + cid);
   if (row) row.classList.toggle('open');
 }
+
+// 顶栏下拉菜单（管理 / 用户）
+function toggleDropdown(id) {
+  var dd = document.getElementById(id);
+  if (!dd) return;
+  var willOpen = !dd.classList.contains('open');
+  document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
+  if (willOpen) dd.classList.add('open');
+}
+// 点击别处关闭下拉
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.dropdown')) {
+    document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
+  }
+});
