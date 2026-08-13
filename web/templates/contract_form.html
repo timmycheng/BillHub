@@ -18,6 +18,20 @@
           <input type="text" name="contract_name" value="{{ values.contract_name }}" required></label>
         <label class="field"><span>签订单位</span>
           <input type="text" name="customer_name" value="{{ values.customer_name }}"></label>
+        {% if current_user.is_admin %}
+        <label class="field"><span>经办人（归属用户）</span>
+          <select name="owner_id">
+            {% for u in users %}
+            <option value="{{ u.id }}" {{ 'selected' if u.id == cur_owner_id }}>
+              {{ u.display_name or u.username }}（{{ u.username }}）
+            </option>
+            {% endfor %}
+          </select>
+        </label>
+        {% else %}
+        <label class="field"><span>经办人</span>
+          <input type="text" value="{{ current_user.display_name }}" disabled></label>
+        {% endif %}
         <label class="field"><span>分类</span>
           <input type="text" name="category" list="cat-list" value="{{ values.category }}">
           <datalist id="cat-list">
