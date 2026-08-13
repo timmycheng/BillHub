@@ -237,6 +237,15 @@ td.link { color: var(--blue); font-weight: 700; }
 .mini-table th, .mini-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; }
 .mini-table th { background: transparent; color: var(--muted); font-weight: 600; }
 .cell-remark { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 合同附件 */
+.attach-list { display: flex; flex-direction: column; gap: 14px; }
+.attach-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: #fafbfd; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; }
+.attach-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.attach-label { font-weight: 700; min-width: 84px; }
+.attach-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.attach-upload input[type="file"] { font-size: 12px; }
 .cell-actions { white-space: nowrap; }
 
 /* ============ 表单 ============ */

@@ -38,6 +38,8 @@ def init_db():
         sign_date TEXT,                        -- 签订日期 YYYY-MM-DD
         start_date TEXT,                       -- 生效时间 YYYY-MM-DD
         end_date TEXT,                         -- 结束时间 YYYY-MM-DD
+        doc_file TEXT,                         -- 合同电子稿文件路径（doc/docx）
+        scan_file TEXT,                        -- 合同扫描件文件路径（PDF）
         remark TEXT,                           -- 备注
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
@@ -93,6 +95,8 @@ _NEW_COLUMNS = {  # 增量迁移：列名 -> 定义
     'bank_account': 'TEXT',
     'start_date': 'TEXT',
     'end_date': 'TEXT',
+    'doc_file': 'TEXT',
+    'scan_file': 'TEXT',
 }
 
 
@@ -207,6 +211,15 @@ def update_contract(cid, contract_no, contract_name, customer_name, total_amount
 def delete_contract(cid):
     conn = get_conn()
     conn.execute('DELETE FROM contracts WHERE id=?', (cid,))
+    conn.commit()
+    conn.close()
+
+
+def set_contract_file(cid, kind, path):
+    """更新合同附件路径。kind 为 'doc_file' 或 'scan_file'。"""
+    assert kind in ('doc_file', 'scan_file')
+    conn = get_conn()
+    conn.execute(f'UPDATE contracts SET {kind}=? WHERE id=?', (path or None, cid))
     conn.commit()
     conn.close()
 

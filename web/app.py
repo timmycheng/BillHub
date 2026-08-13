@@ -43,6 +43,7 @@ def create_app(config_class=Config):
     # 确保上传目录存在
     os.makedirs(app.config['INVOICE_DIR'], exist_ok=True)
     os.makedirs(app.config['REPORT_DIR'], exist_ok=True)
+    os.makedirs(app.config['CONTRACT_FILE_DIR'], exist_ok=True)
 
     # 静态资源缓存破坏：每次启动服务时间戳变化，浏览器必拉新版 CSS/JS
     app.jinja_env.globals['cache_bust'] = str(int(time.time()))
@@ -54,6 +55,11 @@ def create_app(config_class=Config):
             return '{:,.2f}'.format(float(value))
         except (TypeError, ValueError):
             return str(value)
+
+    # Jinja 过滤器：取文件名（剥路径）
+    @app.template_filter('basename')
+    def _basename(value):
+        return os.path.basename(value) if value else ''
 
     return app
 

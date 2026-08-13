@@ -53,6 +53,44 @@
 
 <div class="panel">
   <div class="panel-head">
+    <div><h3>合同附件</h3><span class="muted">电子稿（doc/docx）与签订扫描件（PDF）</span></div>
+  </div>
+  <div class="attach-list">
+    {% set kinds = [('doc', c.doc_file, '合同电子稿', ('.doc', '.docx')),
+                    ('scan', c.scan_file, '合同扫描件', ('.pdf',))] %}
+    {% for kind, path, label, exts in kinds %}
+    <div class="attach-row">
+      <div class="attach-info">
+        <span class="attach-label">{{ label }}</span>
+        {% if path %}
+          <span class="tag green">已上传</span>
+          <span class="muted small">{{ path|basename }}</span>
+        {% else %}
+          <span class="tag gray">未上传</span>
+        {% endif %}
+      </div>
+      <div class="attach-actions">
+        {% if path %}
+        <a href="{{ url_for('contracts.download_file', cid=c.id, kind=kind) }}" class="btn ghost small">下载</a>
+        <form method="post" action="{{ url_for('contracts.delete_file', cid=c.id, kind=kind) }}"
+              onsubmit="return confirm('确定删除该附件？')" style="display:inline">
+          <button type="submit" class="btn danger small">删除</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('contracts.upload_file', cid=c.id) }}"
+              enctype="multipart/form-data" class="attach-upload" style="display:inline">
+          <input type="hidden" name="kind" value="{{ kind }}">
+          <input type="file" name="file" accept="{{ exts|join(',') }}" required>
+          <button type="submit" class="btn ghost small">{{ '更换' if path else '上传' }}</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
     <div><h3>付款计划</h3><span class="muted">{{ stages|length }} 个付款节点</span></div>
   </div>
   {% if has_plan and stages %}
