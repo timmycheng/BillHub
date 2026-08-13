@@ -90,7 +90,7 @@ class ContractDialog(QDialog):
 
         form.addRow('合同编号（可选）', self.no_edit)
         form.addRow('合同名称 *', self.name_edit)
-        form.addRow('客户/甲方', self.customer_edit)
+        form.addRow('签订单位', self.customer_edit)
         form.addRow('经办人', self.manager_edit)
         form.addRow('分类', self.category_edit)
         form.addRow('收款单位', self.payee_edit)
@@ -118,11 +118,11 @@ class ContractDialog(QDialog):
                 pass
             self.remark_edit.setPlainText(contract['remark'] or '')
 
-        # 付款计划编辑表格（期数 | 条件 | 比例% | 金额，金额由比例自动算、可手改）
+        # 付款计划编辑表格（期数 | 比例% | 金额，金额由比例自动算、可手改）
         plan_group = QGroupBox('📅 付款计划')
         plan_layout = QVBoxLayout()
-        self.plan_table = QTableWidget(0, 4)
-        self.plan_table.setHorizontalHeaderLabels(['期数', '支付条件', '比例(%)', '金额(元)'])
+        self.plan_table = QTableWidget(0, 3)
+        self.plan_table.setHorizontalHeaderLabels(['期数', '比例(%)', '金额(元)'])
         self.plan_table.horizontalHeader().setStretchLastSection(True)
         self.plan_table.setMaximumHeight(170)
         self.plan_table.cellChanged.connect(self._auto_amount)
@@ -154,16 +154,16 @@ class ContractDialog(QDialog):
     # ---------- 付款计划编辑 ----------
     def _auto_amount(self, row, col):
         """比例列修改时按合同总额自动算金额"""
-        if col != 2:
+        if col != 1:
             return
-        ratio_item = self.plan_table.item(row, 2)
+        ratio_item = self.plan_table.item(row, 1)
         if not ratio_item:
             return
         try:
             ratio = float(ratio_item.text().strip().replace('%', ''))
         except ValueError:
             return
-        amount_item = self.plan_table.item(row, 3)
+        amount_item = self.plan_table.item(row, 2)
         if not amount_item:
             return
         amount_item.setText(f"{self.amount_edit.value() * ratio / 100:.2f}")
@@ -172,12 +172,11 @@ class ContractDialog(QDialog):
         """表格末尾追加一行；p 为数据库记录时预填"""
         row = self.plan_table.rowCount()
         self.plan_table.insertRow(row)
-        items = [QTableWidgetItem(), QTableWidgetItem(), QTableWidgetItem(), QTableWidgetItem()]
+        items = [QTableWidgetItem(), QTableWidgetItem(), QTableWidgetItem()]
         if p:
             items[0].setText(str(p['seq']))
-            items[1].setText(p['condition'] or '')
-            items[2].setText('' if p['ratio'] is None else f"{p['ratio'] * 100:g}")
-            items[3].setText(f"{p['amount']:.2f}")
+            items[1].setText('' if p['ratio'] is None else f"{p['ratio'] * 100:g}")
+            items[2].setText(f"{p['amount']:.2f}")
         items[0].setFlags(items[0].flags() & ~Qt.ItemFlag.ItemIsEditable)  # 期数自动编号
         for c, item in enumerate(items):
             self.plan_table.setItem(row, c, item)
@@ -204,10 +203,9 @@ class ContractDialog(QDialog):
         """读取表格（跳过全空行），ratio 转小数；返回 [{seq, condition, ratio, amount}]"""
         rows = []
         for i in range(self.plan_table.rowCount()):
-            cond = self.plan_table.item(i, 1).text().strip() if self.plan_table.item(i, 1) else ''
-            ratio_txt = self.plan_table.item(i, 2).text().strip() if self.plan_table.item(i, 2) else ''
-            amount_txt = self.plan_table.item(i, 3).text().strip() if self.plan_table.item(i, 3) else ''
-            if not cond and not ratio_txt and not amount_txt:
+            ratio_txt = self.plan_table.item(i, 1).text().strip() if self.plan_table.item(i, 1) else ''
+            amount_txt = self.plan_table.item(i, 2).text().strip() if self.plan_table.item(i, 2) else ''
+            if not ratio_txt and not amount_txt:
                 continue
             ratio = None
             if ratio_txt:
@@ -219,7 +217,7 @@ class ContractDialog(QDialog):
                 amount = float(amount_txt.replace(',', ''))
             except ValueError:
                 amount = 0.0
-            rows.append({'seq': i + 1, 'condition': cond, 'ratio': ratio, 'amount': amount})
+            rows.append({'seq': i + 1, 'condition': '', 'ratio': ratio, 'amount': amount})
         return rows
 
     def validate_and_accept(self):
@@ -350,7 +348,7 @@ class MainWindow(QMainWindow):
         self.lbl_remaining = QLabel('-')
         self.lbl_remaining.setStyleSheet('color:#c0392b;font-weight:bold;')
         info_layout.addRow('合同：', self.lbl_contract)
-        info_layout.addRow('客户：', self.lbl_customer)
+        info_layout.addRow('签订单位：', self.lbl_customer)
         info_layout.addRow('经办人：', self.lbl_manager)
         info_layout.addRow('分类：', self.lbl_category)
         info_layout.addRow('收款单位：', self.lbl_payee)
@@ -565,10 +563,9 @@ class MainWindow(QMainWindow):
             return
         lines = []
         for s in stages:
-            cond = f" [{s['condition']}]" if s['condition'] else ''
             ratio = f"{s['ratio'] * 100:g}%" if s['ratio'] is not None else '-'
             lines.append(
-                f"第{s['seq']}期{cond} 比例{ratio} 计划¥{s['amount']:,.2f} "
+                f"第{s['seq']}期 比例{ratio} 计划¥{s['amount']:,.2f} "
                 f"已付¥{s['paid']:,.2f} 待付¥{s['remaining']:,.2f}")
         if surplus > 0:
             lines.append(f"⚠️ 超出计划 ¥{surplus:,.2f}")
@@ -882,10 +879,7 @@ class MainWindow(QMainWindow):
             if plan:
                 paid = self._paid_stages()
                 for p in plan:
-                    text = f"第{p['seq']}期"
-                    if p['condition']:
-                        text += f"({p['condition']})"
-                    self.stage_combo.addItem(text, p['seq'])
+                    self.stage_combo.addItem(f"第{p['seq']}期", p['seq'])
                     if p['seq'] in paid:
                         idx = self.stage_combo.count() - 1
                         self.stage_combo.setItemData(idx, None, Qt.ItemDataRole.UserRole)
