@@ -1,0 +1,97 @@
+{# 报销录入弹窗内容（HTMX 加载进 #modal-reimburse-content）#}
+<div class="reimburse-head">
+  <h3>🧾 报销录入</h3>
+  <span class="muted small">合同：{{ c.contract_name }}</span>
+</div>
+
+<form method="post" action="{{ url_for('payments.create') }}"
+      enctype="multipart/form-data" id="pay-form">
+  <input type="hidden" name="contract_id" value="{{ c.id }}">
+
+  <div id="drop-zone" class="drop-zone">
+    📷 拖拽发票/收据图片或 PDF 到此处，自动 OCR 识别<br>
+    <span class="small muted">（也支持点击选择文件；识别结果请人工核对！）</span>
+  </div>
+  <div id="ocr-status" class="ocr-status"></div>
+  <input type="file" id="invoice-file" name="invoice_file"
+         accept=".png,.jpg,.jpeg,.bmp,.webp,.pdf" style="display:none">
+
+  <div class="pay-grid">
+    <label class="field"><span>发票号</span>
+      <input type="text" name="invoice_no" placeholder="OCR 自动填充或手动输入"></label>
+    <label class="field"><span>开票日期</span>
+      <input type="date" name="invoice_date"></label>
+    <label class="field"><span>报销日期</span>
+      <input type="date" name="pay_date" value="{{ today }}"></label>
+    <label class="field"><span>金额 *</span>
+      <input type="number" step="0.01" min="0" name="amount" required></label>
+    <label class="field"><span>阶段</span>
+      {% if plan %}
+      <select name="stage">
+        {% for p in plan %}
+        <option value="第{{ p.seq }}期"
+                {% if p.seq in paid_stages %}disabled{% endif %}
+                {% if p.seq == default_seq %}selected{% endif %}>
+          第{{ p.seq }}期{% if p.condition %}（{{ p.condition }}）{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <input type="text" name="stage" placeholder="如：第一期 30%">
+      {% endif %}</label>
+  </div>
+  <label class="field"><span>主要内容（留空则用合同备注）</span>
+    <textarea name="main_content" rows="2"></textarea></label>
+  <label class="field"><span>备注（可选）</span>
+    <textarea name="remark" rows="2"></textarea></label>
+
+  <div class="pay-actions">
+    <button type="submit" class="btn-primary">📥 生成报销单</button>
+    <button type="button" class="btn-ghost"
+            hx-post="{{ url_for('preview.draft') }}" hx-include="#pay-form"
+            hx-target="#modal-preview-content" hx-swap="innerHTML"
+            onclick="openModal('modal-preview')">👁 预览本次</button>
+    <button type="reset" class="btn-ghost">🔄 重置</button>
+  </div>
+</form>
+
+<script>
+(function () {
+  var zone = document.getElementById('drop-zone');
+  var input = document.getElementById('invoice-file');
+  var status = document.getElementById('ocr-status');
+  if (!zone || !input) return;
+  var defaultZoneHtml = '📷 拖拽发票/收据图片或 PDF 到此处，自动 OCR 识别<br>' +
+    '<span class="small muted">（也支持点击选择文件；识别结果请人工核对！）</span>';
+  zone.addEventListener('click', function () { input.click(); });
+  zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', function () { zone.classList.remove('drag'); });
+  zone.addEventListener('drop', function (e) {
+    e.preventDefault(); zone.classList.remove('drag');
+    if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; doOcr(e.dataTransfer.files[0]); }
+  });
+  input.addEventListener('change', function () { if (input.files.length) doOcr(input.files[0]); });
+  function doOcr(file) {
+    zone.textContent = '⏳ 识别中：' + file.name + ' …';
+    status.textContent = '识别中，请稍候（首次加载模型较慢）…';
+    var fd = new FormData(); fd.append('file', file);
+    fetch('{{ url_for("ocr_api.ocr") }}', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) { status.textContent = '⚠️ ' + data.error; zone.innerHTML = defaultZoneHtml; return; }
+        var form = document.getElementById('pay-form');
+        if (data.invoice_no) form.querySelector('[name="invoice_no"]').value = data.invoice_no;
+        if (data.date) form.querySelector('[name="invoice_date"]').value = data.date;
+        if (data.amount) form.querySelector('[name="amount"]').value = data.amount;
+        var parts = [];
+        if (data.invoice_no) parts.push('发票号 ' + data.invoice_no);
+        if (data.amount) parts.push('金额 ¥' + data.amount);
+        if (data.date) parts.push('日期 ' + data.date);
+        if (data.seller) parts.push('销售方 ' + data.seller);
+        status.textContent = '✅ 识别完成：' + parts.join(' | ') + '（请人工核对金额！）';
+        zone.textContent = '✅ 已选择：' + file.name + '（再次点击/拖拽可更换）';
+      })
+      .catch(function () { status.textContent = '❌ OCR 请求失败，请手动填写'; zone.innerHTML = defaultZoneHtml; });
+  }
+})();
+</script>

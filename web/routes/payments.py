@@ -16,11 +16,14 @@ from web.auth import can_access_contract
 bp = Blueprint('payments', __name__)
 
 
-# ============ 面板渲染（供 contracts.info_panel OOB 组合）============
-def render_payment_panel(cid, oob=False):
+# ============ 报销表单（弹窗内容）============
+@bp.route('/payments/form/<int:cid>')
+@login_required
+def form(cid):
     c = db.get_contract(cid)
+    if not c or not can_access_contract(c):
+        abort(404)
     plan = db.list_payment_plan(cid)
-    # 已报销过的期数置灰（与桌面版 _paid_stages 一致）
     paid_stages = set()
     if plan:
         n = len(plan)
@@ -29,10 +32,8 @@ def render_payment_panel(cid, oob=False):
             if idx is not None:
                 paid_stages.add(idx + 1)
     default_seq = next((p['seq'] for p in plan if p['seq'] not in paid_stages), None)
-    payments = db.list_payments(cid)
-    return render_template('_payment_panel.html', c=c, plan=plan,
+    return render_template('_reimburse_form.html', c=c, plan=plan,
                            paid_stages=paid_stages, default_seq=default_seq,
-                           payments=payments, oob=oob,
                            today=datetime.now().strftime('%Y-%m-%d'))
 
 

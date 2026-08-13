@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}工作台{% endblock %}
+{% block title %}合同管理{% endblock %}
 {% block header %}
 <header class="topbar">
-  <div class="brand">BillHub</div>
+  <div class="brand">BillHub · 合同管理</div>
   <div class="spacer"></div>
   <div class="user-info">
     <span class="user-name">{{ current_user.display_name }}</span>
@@ -17,49 +17,68 @@
 </header>
 {% endblock %}
 {% block body %}
-<div class="dashboard">
-  {# ===== 左栏：合同列表（上）+ 详情（下）===== #}
-  <section class="col col-left">
-    <div id="contract-list-panel"
-         hx-get="{{ url_for('contracts.list_panel') }}{% if selected %}?selected={{ selected }}{% endif %}"
-         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
-      <p class="muted center pad">加载中…</p>
-    </div>
-    <div id="contract-info" class="info-card info-empty"
-         {% if selected %}hx-get="{{ url_for('contracts.info_panel', cid=selected) }}"
-         hx-trigger="load" hx-target="this" hx-swap="outerHTML"{% endif %}>
-      {% if not selected %}<p class="muted center pad">请选择左侧合同查看详情</p>{% endif %}
-    </div>
-  </section>
-
-  {# ===== 中栏：报销录入（P3）===== #}
-  <section class="col col-mid">
-    {% if selected %}
-    <div id="payment-panel"><!-- 由合同详情的 OOB 交换填充 --></div>
-    {% else %}
-    <div id="payment-panel">
-      <div class="placeholder">
-        <h3>🧾 本次报销录入</h3>
-        <p class="hint">选择左侧合同后在此填报报销</p>
-        <span class="tag">P3</span>
-      </div>
-    </div>
-    {% endif %}
-  </section>
-
-  {# ===== 右栏：审批表预览（P4）===== #}
-  <section class="col col-right">
-    <div id="approval-preview"
-         {% if preview %}hx-get="{{ url_for('preview.saved', pid=preview) }}"
-         hx-trigger="load" hx-target="this" hx-swap="outerHTML"{% endif %}>
-      {% if not preview %}
-      <div class="placeholder">
-        <h3>🖨 审批表预览</h3>
-        <p class="hint">填表后点「预览本次」，或生成报销单后自动显示</p>
-        <span class="tag">P4</span>
-      </div>
+<div class="page">
+  <div class="page-toolbar">
+    <input type="text" name="q" value="{{ q }}" class="search-input"
+           placeholder="🔍 搜索合同编号 / 名称…"
+           hx-get="{{ url_for('contracts.rows') }}"
+           hx-trigger="keyup changed delay:300ms"
+           hx-target="#contract-tbody" hx-swap="innerHTML" hx-include="this">
+    <div class="page-actions">
+      <a href="{{ url_for('contracts.new') }}" class="btn-primary">＋ 新增合同</a>
+      {% if current_user.is_admin %}
+      <a href="{{ url_for('contracts.export') }}" class="btn-ghost">导出</a>
+      <button type="button" class="btn-ghost" onclick="document.getElementById('import-file').click()">导入</button>
+      <form method="post" action="{{ url_for('contracts.import_file') }}" enctype="multipart/form-data" style="display:none">
+        <input id="import-file" type="file" name="file" accept=".xlsx" onchange="this.form.submit()">
+      </form>
       {% endif %}
     </div>
-  </section>
+  </div>
+
+  <table class="contract-table">
+    <thead>
+      <tr>
+        <th>合同编号</th>
+        <th>合同名称</th>
+        <th>客户/甲方</th>
+        <th class="r">合同总额</th>
+        <th class="r">已付</th>
+        <th class="r">剩余</th>
+        <th style="min-width:160px">付款进度</th>
+        <th class="actions-col">操作</th>
+      </tr>
+    </thead>
+    <tbody id="contract-tbody">
+      {% include '_contract_rows.html' %}
+    </tbody>
+  </table>
 </div>
+
+{# ===== 报销弹窗 ===== #}
+<div id="modal-reimburse" class="modal" hidden>
+  <div class="modal-backdrop" onclick="closeModal('modal-reimburse')"></div>
+  <div class="modal-dialog modal-lg">
+    <button class="modal-close" onclick="closeModal('modal-reimburse')">✕</button>
+    <div id="modal-reimburse-content" class="modal-body"></div>
+  </div>
+</div>
+
+{# ===== 审批表预览弹窗 ===== #}
+<div id="modal-preview" class="modal" hidden>
+  <div class="modal-backdrop" onclick="closeModal('modal-preview')"></div>
+  <div class="modal-dialog modal-xl">
+    <button class="modal-close" onclick="closeModal('modal-preview')">✕</button>
+    <div id="modal-preview-content" class="modal-body"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if preview %}
+// 生成报销单后 redirect 带 ?preview= 时自动弹预览
+document.addEventListener('DOMContentLoaded', function () { openPreview({{ preview }}); });
+{% endif %}
+</script>
 {% endblock %}
