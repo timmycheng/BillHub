@@ -1,5 +1,6 @@
 """BillHub Flask 应用工厂。"""
 import os
+import time
 
 from flask import Flask
 
@@ -20,6 +21,9 @@ def create_app(config_class=Config):
                 static_folder='static')
     app.config.from_object(config_class)
 
+    # 静态资源不长期缓存（开发期改 CSS/JS 立即生效；配合下面的 ?v= 缓存破坏）
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
     # 初始化数据库（建表 + 增量迁移）+ 首次启动种子管理员
     db.init_db()
     _seed_admin(app)
@@ -39,6 +43,9 @@ def create_app(config_class=Config):
     # 确保上传目录存在
     os.makedirs(app.config['INVOICE_DIR'], exist_ok=True)
     os.makedirs(app.config['REPORT_DIR'], exist_ok=True)
+
+    # 静态资源缓存破坏：每次启动服务时间戳变化，浏览器必拉新版 CSS/JS
+    app.jinja_env.globals['cache_bust'] = str(int(time.time()))
 
     # Jinja 过滤器：金额千分位格式化（¥1,234.56）
     @app.template_filter('money')
