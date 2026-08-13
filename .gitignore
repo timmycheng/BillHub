@@ -17,6 +17,7 @@ uploads/
 data/
 test/
 models/
+templates/
 
 # Generated report files
 合同清单_*.xlsx
@@ -33,3 +34,4 @@ release/
 # Local env (secrets)
 .env
 
+demo/
