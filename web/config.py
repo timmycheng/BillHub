@@ -12,10 +12,11 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
 
-    # 文件存储：上传的发票 / 生成的审批表
+    # 文件存储：上传的发票 / 生成的审批表 / 合同附件
     UPLOAD_DIR = os.environ.get('BILLHUB_UPLOAD_DIR') or os.path.join(_BASE, 'uploads')
     INVOICE_DIR = os.path.join(UPLOAD_DIR, 'invoices')
     REPORT_DIR = os.path.join(UPLOAD_DIR, 'reports')
+    CONTRACT_FILE_DIR = os.path.join(UPLOAD_DIR, 'contracts')
 
     # 审批表 Excel 模板（占位符驱动）
     APPROVAL_TEMPLATE = os.environ.get('BILLHUB_TEMPLATE') or os.path.join(

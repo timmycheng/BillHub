@@ -1,10 +1,11 @@
 ﻿"""BillHub 合同管理：清单页 / 详情页 / 增删改 / 付款计划 / 导入导出。
 权限：普通用户只看自己的合同（owner_id），管理员看全部。导入导出限管理员。"""
 import os
+import re
 import tempfile
-from datetime import date
+from datetime import date, datetime
 
-from flask import (Blueprint, abort, flash, redirect, render_template,
+from flask import (Blueprint, abort, current_app, flash, redirect, render_template,
                    request, send_file, url_for)
 from flask_login import current_user, login_required
 
@@ -207,6 +208,85 @@ def delete(cid):
     db.delete_contract(cid)
     flash(f'已删除合同：{name}', 'success')
     return redirect(url_for('contracts.list'))
+
+
+# ============ 合同附件（电子稿 / 扫描件）============
+_CONTRACT_FILE_KINDS = {'doc': ('doc_file', ('.doc', '.docx'), '电子稿'),
+                        'scan': ('scan_file', ('.pdf',), '扫描件')}
+
+
+@bp.route('/contracts/<int:cid>/files', methods=['POST'])
+@login_required
+def upload_file(cid):
+    c = db.get_contract(cid)
+    if not c or not can_access_contract(c):
+        abort(404)
+    kind = request.form.get('kind', '').strip()
+    spec = _CONTRACT_FILE_KINDS.get(kind)
+    if not spec:
+        flash('未知的附件类型', 'danger')
+        return redirect(url_for('contracts.detail', cid=cid))
+    col, allowed, label = spec
+    f = request.files.get('file')
+    if not f or not f.filename:
+        flash(f'请选择要上传的{label}文件', 'warning')
+        return redirect(url_for('contracts.detail', cid=cid))
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in allowed:
+        flash(f'{label}仅支持 {"/".join(allowed)} 格式', 'danger')
+        return redirect(url_for('contracts.detail', cid=cid))
+    # 删除旧文件后保存新文件
+    if c.get(col) and os.path.exists(c[col]):
+        try:
+            os.remove(c[col])
+        except OSError:
+            pass
+    save_dir = os.path.join(current_app.config['CONTRACT_FILE_DIR'], str(cid))
+    os.makedirs(save_dir, exist_ok=True)
+    safe = re.sub(r'[^\w\-.]', '_', f.filename) or (kind + ext)
+    fname = f"{kind}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe}"
+    dest = os.path.join(save_dir, fname)
+    f.save(dest)
+    db.set_contract_file(cid, col, dest)
+    flash(f'{label}已上传', 'success')
+    return redirect(url_for('contracts.detail', cid=cid))
+
+
+@bp.route('/files/contract/<int:cid>/<kind>')
+@login_required
+def download_file(cid, kind):
+    c = db.get_contract(cid)
+    if not c or not can_access_contract(c):
+        abort(404)
+    spec = _CONTRACT_FILE_KINDS.get(kind)
+    if not spec:
+        abort(404)
+    col, _, _ = spec
+    path = c.get(col) or ''
+    if not path or not os.path.exists(path):
+        flash('该附件不存在（可能已删除）', 'warning')
+        return redirect(url_for('contracts.detail', cid=cid))
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+
+
+@bp.route('/contracts/<int:cid>/files/<kind>/delete', methods=['POST'])
+@login_required
+def delete_file(cid, kind):
+    c = db.get_contract(cid)
+    if not c or not can_access_contract(c):
+        abort(404)
+    spec = _CONTRACT_FILE_KINDS.get(kind)
+    if not spec:
+        abort(404)
+    col, _, label = spec
+    if c.get(col) and os.path.exists(c[col]):
+        try:
+            os.remove(c[col])
+        except OSError:
+            pass
+    db.set_contract_file(cid, col, '')
+    flash(f'已删除{label}', 'success')
+    return redirect(url_for('contracts.detail', cid=cid))
 
 
 # ============ 导出（管理员）============
