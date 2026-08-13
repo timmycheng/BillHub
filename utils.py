@@ -1,7 +1,7 @@
 """BillHub 公共工具模块（桌面版 main.py 与 Web 版共享）。
 num_to_cn / safe_dirname 从 main.py 抽取，桌面版改为 import 复用。"""
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 import db
 
@@ -10,6 +10,27 @@ def safe_dirname(name):
     """把合同名清洗为合法文件夹名（去 Windows 非法字符、截断）"""
     s = re.sub(r'[\\/:*?"<>|]', '_', name or '').strip()
     return s[:40] or '未命名合同'
+
+
+def contract_statuses(c):
+    """计算合同的签订状态与生效状态（派生字段，不落库）。
+    - 签订状态：依据是否已上传 PDF 扫描件 → '是' / '否'
+    - 生效状态：依据生效时间 start_date、结束时间 end_date 与今天的关系：
+      未生效（尚未到生效时间/未设置生效时间）、生效中、已失效。
+    返回 {'signed': '是'|'否', 'effective': '未生效'|'生效中'|'已失效',
+          'effective_key': 'pending'|'active'|'expired', 'signed_bool': bool}"""
+    signed = '是' if c.get('scan_file') else '否'
+    today = date.today().isoformat()
+    start = c.get('start_date') or ''
+    end = c.get('end_date') or ''
+    if end and today > end:
+        eff, key = '已失效', 'expired'
+    elif start and (not end or today <= end) and today >= start:
+        eff, key = '生效中', 'active'
+    else:
+        eff, key = '未生效', 'pending'
+    return {'signed': signed, 'effective': eff, 'effective_key': key,
+            'signed_bool': bool(c.get('scan_file'))}
 
 
 def num_to_cn(num):

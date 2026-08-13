@@ -11,6 +11,7 @@ from flask_login import current_user, login_required
 
 import contract_io
 import db
+from utils import contract_statuses
 from web.auth import admin_required, can_access_contract
 
 bp = Blueprint('contracts', __name__)
@@ -23,8 +24,9 @@ def _owner_filter():
     return None if current_user.is_admin else int(current_user.id)
 
 
-def build_rows(owner, q='', category=''):
-    """返回 [{c, s(stats), pct, owner_name}]，供表格行渲染。"""
+def build_rows(owner, q='', category='', status=''):
+    """返回 [{c, s(stats), pct, owner_name, status}]，供表格行渲染。
+    status 过滤值：pending/active/expired。"""
     contracts = db.list_contracts(owner_id=owner)
     if q:
         ql = q.lower()
@@ -34,6 +36,9 @@ def build_rows(owner, q='', category=''):
                      or ql in (c['customer_name'] or '').lower()]
     if category:
         contracts = [c for c in contracts if (c['category'] or '') == category]
+    if status:
+        contracts = [c for c in contracts
+                     if contract_statuses(c)['effective_key'] == status]
     users = {u['id']: u for u in db.list_users()}
     rows = []
     for c in contracts:
@@ -42,7 +47,8 @@ def build_rows(owner, q='', category=''):
         owner_u = users.get(c.get('owner_id'))
         owner_name = (owner_u['display_name'] if owner_u else None) \
             or c.get('contract_manager') or ''
-        rows.append({'c': c, 's': s, 'pct': min(pct, 100), 'owner_name': owner_name})
+        rows.append({'c': c, 's': s, 'pct': min(pct, 100), 'owner_name': owner_name,
+                     'status': contract_statuses(c)})
     return rows
 
 
@@ -58,9 +64,10 @@ def _owner_display(owner_id):
 def list():
     q = request.args.get('q', '').strip()
     category = request.args.get('category', '').strip()
-    rows = build_rows(_owner_filter(), q, category)
+    status = request.args.get('status', '').strip()
+    rows = build_rows(_owner_filter(), q, category, status)
     return render_template('contracts.html', rows=rows, q=q, category=category,
-                           categories=CONTRACT_CATEGORIES)
+                           status=status, categories=CONTRACT_CATEGORIES)
 
 
 # ============ 合同详情页 ============
@@ -81,7 +88,8 @@ def detail(cid):
     preview = request.args.get('preview', type=int)
     return render_template('contract_detail.html', c=c, stats=stats, pct=min(pct, 100),
                            stages=stages, surplus=surplus, owner_name=owner_name,
-                           has_plan=bool(plan), payments=payments, preview=preview)
+                           has_plan=bool(plan), payments=payments, preview=preview,
+                           status=contract_statuses(c))
 
 
 # ============ 表单解析 ============

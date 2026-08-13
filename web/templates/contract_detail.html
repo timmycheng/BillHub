@@ -18,6 +18,10 @@
   <div class="panel">
     <div class="detail-title-row">
       <div>
+        {% if status.signed_bool %}<span class="tag green">已签订</span>{% else %}<span class="tag gray">未签订</span>{% endif %}
+        {% if status.effective_key == 'active' %}<span class="tag green">生效中</span>
+        {% elif status.effective_key == 'expired' %}<span class="tag gray">已失效</span>
+        {% else %}<span class="tag orange">未生效</span>{% endif %}
         {% if c.category %}<span class="tag blue">{{ c.category }}</span>{% endif %}
         <span class="muted">创建于 {{ c.created_at }}</span>
       </div>
@@ -33,6 +37,8 @@
       <div><label>签订日期</label><strong>{{ c.sign_date or '—' }}</strong></div>
       <div><label>生效时间</label><strong>{{ c.start_date or '—' }}</strong></div>
       <div><label>结束时间</label><strong>{{ c.end_date or '—' }}</strong></div>
+      <div><label>签订状态</label><strong>{{ status.signed }}</strong></div>
+      <div><label>生效状态</label><strong>{{ status.effective }}</strong></div>
       <div><label>收款单位</label><strong>{{ c.payee or '—' }}</strong></div>
       <div><label>开户银行</label><strong>{{ c.bank_name or '—' }}</strong></div>
       <div class="wide"><label>银行账号</label><strong>{{ c.bank_account or '—' }}</strong></div>
