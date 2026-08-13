@@ -95,6 +95,10 @@ def _parse_form_data(form):
         return None, '合同总金额格式错误'
     if amount <= 0:
         return None, '合同总金额必须大于 0'
+    start_date = form.get('start_date', '').strip()
+    end_date = form.get('end_date', '').strip()
+    if start_date and end_date and end_date < start_date:
+        return None, '结束时间不能早于生效时间'
     return {
         'contract_no': form.get('contract_no', '').strip(),
         'contract_name': name,
@@ -106,6 +110,8 @@ def _parse_form_data(form):
         'bank_account': form.get('bank_account', '').strip(),
         'total_amount': amount,
         'sign_date': form.get('sign_date', '').strip(),
+        'start_date': start_date,
+        'end_date': end_date,
         'remark': form.get('remark', '').strip(),
     }, None
 
@@ -249,7 +255,7 @@ def import_file():
 # ============ 表单渲染辅助 ============
 _FORM_FIELDS = ['contract_no', 'contract_name', 'customer_name', 'contract_manager',
                 'category', 'payee', 'bank_name', 'bank_account',
-                'total_amount', 'sign_date', 'remark']
+                'total_amount', 'sign_date', 'start_date', 'end_date', 'remark']
 
 
 def _render_form(contract, formdata):

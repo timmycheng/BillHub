@@ -12,7 +12,8 @@ import db
 
 # 导出表头（导入时按此表头名匹配列）
 EXPORT_HEADERS = ['合同编号', '合同名称', '签订单位', '经办人', '分类', '收款单位', '开户银行',
-                  '银行账号', '合同总金额', '签订日期', '备注', '已付金额', '剩余金额']
+                  '银行账号', '合同总金额', '签订日期', '生效时间', '结束时间', '备注',
+                  '已付金额', '剩余金额']
 
 # 导入表头 -> db 字段（含别名容错；已付/剩余为系统计算值，导入时忽略）
 HEADER_MAP = {
@@ -26,6 +27,8 @@ HEADER_MAP = {
     '银行账号': 'bank_account', '银行帐号': 'bank_account', '账号': 'bank_account',
     '合同总金额': 'total_amount', '总金额': 'total_amount', '金额': 'total_amount',
     '签订日期': 'sign_date', '签约日期': 'sign_date', '日期': 'sign_date',
+    '生效时间': 'start_date', '生效日期': 'start_date', '开始时间': 'start_date', '起始日期': 'start_date',
+    '结束时间': 'end_date', '结束日期': 'end_date', '到期时间': 'end_date', '到期日期': 'end_date',
     '备注': 'remark',
 }
 
@@ -108,14 +111,17 @@ def export_contracts(filepath):
         ws.cell(row=i, column=8, value=c['bank_account'] or '')
         ws.cell(row=i, column=9, value=c['total_amount'])
         ws.cell(row=i, column=10, value=c['sign_date'] or '')
-        ws.cell(row=i, column=11, value=c['remark'] or '')
-        ws.cell(row=i, column=12, value=stats['paid'])
-        ws.cell(row=i, column=13, value=stats['remaining'])
-        for col in (9, 12, 13):
+        ws.cell(row=i, column=11, value=c.get('start_date') or '')
+        ws.cell(row=i, column=12, value=c.get('end_date') or '')
+        ws.cell(row=i, column=13, value=c['remark'] or '')
+        ws.cell(row=i, column=14, value=stats['paid'])
+        ws.cell(row=i, column=15, value=stats['remaining'])
+        for col in (9, 14, 15):
             ws.cell(row=i, column=col).number_format = '#,##0.00'
 
     # 列宽 + 冻结表头
-    for col, w in enumerate([18, 32, 20, 10, 12, 20, 18, 20, 14, 12, 30, 14, 14], start=1):
+    widths = [18, 32, 20, 10, 12, 20, 18, 20, 14, 12, 12, 12, 30, 14, 14]
+    for col, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(col)].width = w
     ws.freeze_panes = 'A2'
 
@@ -142,6 +148,12 @@ def _row_to_contract(cells, header):
     sign_date = parse_date(get('sign_date'))
     if sign_date is None:
         return None, '签订日期格式错误'
+    start_date = parse_date(get('start_date'))
+    if start_date is None:
+        return None, '生效时间格式错误'
+    end_date = parse_date(get('end_date'))
+    if end_date is None:
+        return None, '结束时间格式错误'
     return {
         'contract_no': _cell_text(get('contract_no')),
         'contract_name': name,
@@ -153,6 +165,8 @@ def _row_to_contract(cells, header):
         'bank_account': _cell_text(get('bank_account')),
         'total_amount': amount,
         'sign_date': sign_date,
+        'start_date': start_date,
+        'end_date': end_date,
         'remark': _cell_text(get('remark')),
     }, None
 
