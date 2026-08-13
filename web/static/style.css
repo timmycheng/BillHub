@@ -102,14 +102,15 @@ body {
 
 .contract-table {
   width: 100%; border-collapse: collapse; background: var(--surface);
-  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border);
 }
 .contract-table th, .contract-table td {
   padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px;
 }
+.contract-table tr:last-child td { border-bottom: none; }
 .contract-table th {
   background: #f8fafc; color: var(--text-muted); font-weight: 600; font-size: 12px;
-  text-transform: none; position: sticky; top: 56px;
+  position: sticky; top: 56px; z-index: 10;
 }
 .contract-row:hover { background: #f8fafc; }
 .contract-row .contract-name { font-weight: 600; }
