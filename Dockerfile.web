@@ -8,8 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
 WORKDIR /app
 
 # 先拷依赖清单装包（利用层缓存；Web 版不含 PyQt6/pyinstaller）
+# rapidocr 依赖 opencv-python（GUI 版需 X11 系统库 libxcb/libX11），
+# slim 镜像没有且服务端无 GUI，装完后换成 opencv-python-headless
 COPY requirements-web.txt .
-RUN pip install --no-cache-dir -r requirements-web.txt
+RUN pip install --no-cache-dir -r requirements-web.txt \
+    && pip uninstall -y opencv-python \
+    && pip install --no-cache-dir opencv-python-headless
 
 # 拷业务代码 + 模板（templates/ 含审批表 Excel 模板）
 COPY db.py ocr.py template_engine.py contract_io.py utils.py ./
