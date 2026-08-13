@@ -44,6 +44,7 @@ def create_app(config_class=Config):
     os.makedirs(app.config['INVOICE_DIR'], exist_ok=True)
     os.makedirs(app.config['REPORT_DIR'], exist_ok=True)
     os.makedirs(app.config['CONTRACT_FILE_DIR'], exist_ok=True)
+    os.makedirs(app.config['PAYMENT_FILE_DIR'], exist_ok=True)
 
     # 静态资源缓存破坏：每次启动服务时间戳变化，浏览器必拉新版 CSS/JS
     app.jinja_env.globals['cache_bust'] = str(int(time.time()))

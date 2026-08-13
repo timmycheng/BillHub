@@ -14,7 +14,7 @@
     <table>
       <thead><tr>
         <th>报销单号</th><th>合同</th><th>阶段</th><th class="r">金额</th>
-        <th>发票号</th><th>填报时间</th><th>操作</th>
+        <th>发票号</th><th>填报时间</th><th>相关文件</th><th>操作</th>
       </tr></thead>
       <tbody>
       {% for rec in records %}
@@ -25,6 +25,13 @@
           <td class="r">¥{{ rec.amount|money }}</td>
           <td>{{ rec.invoice_no or '—' }}</td>
           <td class="muted">{{ rec.created_at }}</td>
+          <td class="cell-attach">
+            {% if rec.files %}
+            {% for f in rec.files %}
+            <a href="{{ url_for('payments.download_attachment', fid=f.id) }}" class="attach-link" title="{{ f.orig_name }}">{{ f.orig_name|basename }}</a>{% if not loop.last %}、{% endif %}
+            {% endfor %}
+            {% else %}—{% endif %}
+          </td>
           <td class="cell-actions">
             <button type="button" class="row-btn" onclick="openPreview({{ rec.id }})">预览</button>
             {% if rec.invoice_file %}
@@ -40,7 +47,7 @@
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="7" class="empty-row">暂无报销记录，请到合同详情页点击「＋ 填报报销」</td></tr>
+        <tr><td colspan="8" class="empty-row">暂无报销记录，请到合同详情页点击「＋ 填报报销」</td></tr>
       {% endfor %}
       </tbody>
     </table>
