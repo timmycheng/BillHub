@@ -17,6 +17,7 @@ class Config:
     INVOICE_DIR = os.path.join(UPLOAD_DIR, 'invoices')
     REPORT_DIR = os.path.join(UPLOAD_DIR, 'reports')
     CONTRACT_FILE_DIR = os.path.join(UPLOAD_DIR, 'contracts')
+    PAYMENT_FILE_DIR = os.path.join(UPLOAD_DIR, 'payment_files')
 
     # 审批表 Excel 模板（占位符驱动）
     APPROVAL_TEMPLATE = os.environ.get('BILLHUB_TEMPLATE') or os.path.join(

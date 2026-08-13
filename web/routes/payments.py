@@ -125,6 +125,22 @@ def create():
                              stage=stage, amount=amount, invoice_no=invoice_no, remark=remark,
                              invoice_file=invoice_file, report_file=out_path,
                              user_id=int(current_user.id))
+
+    # 保存本次上传的相关文件（多文件）
+    save_dir = os.path.join(current_app.config['PAYMENT_FILE_DIR'], str(new_pid))
+    os.makedirs(save_dir, exist_ok=True)
+    for up in request.files.getlist('files'):
+        if not up or not up.filename:
+            continue
+        up_ext = os.path.splitext(up.filename)[1].lower()
+        safe = re.sub(r'[^\w\-.]', '_', up.filename) or ('attachment' + up_ext)
+        dest = os.path.join(save_dir, f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe}")
+        try:
+            up.save(dest)
+            db.add_payment_file(new_pid, up.filename, dest)
+        except OSError:
+            pass
+
     flash('✅ 审批表已生成并保存记录！', 'success')
     return redirect(url_for('contracts.detail', cid=cid, preview=new_pid))
 
@@ -169,3 +185,38 @@ def download_invoice(pid):
         abort(404)
     fname = os.path.basename(rec.get('invoice_file') or f'票据_{pid}')
     return _send_payment_file(pid, 'invoice_file', fname)
+
+
+# ============ 报销相关附件（多文件）============
+@bp.route('/files/attachment/<int:fid>')
+@login_required
+def download_attachment(fid):
+    f = db.get_payment_file(fid)
+    if not f:
+        abort(404)
+    _get_accessible_contract(db.get_payment(f['payment_id'])['contract_id'])
+    if not f['path'] or not os.path.exists(f['path']):
+        flash('该附件不存在（可能已删除）', 'warning')
+        return redirect(url_for('contracts.detail',
+                                cid=db.get_payment(f['payment_id'])['contract_id']))
+    return send_file(f['path'], as_attachment=True,
+                     download_name=f.get('orig_name') or os.path.basename(f['path']))
+
+
+@bp.route('/files/attachment/<int:fid>/delete', methods=['POST'])
+@login_required
+def delete_attachment(fid):
+    f = db.get_payment_file(fid)
+    if not f:
+        abort(404)
+    rec = db.get_payment(f['payment_id'])
+    cid = rec['contract_id']
+    _get_accessible_contract(cid)
+    if f['path'] and os.path.exists(f['path']):
+        try:
+            os.remove(f['path'])
+        except OSError:
+            pass
+    db.delete_payment_file(fid)
+    flash('已删除附件', 'success')
+    return redirect(url_for('contracts.detail', cid=cid))

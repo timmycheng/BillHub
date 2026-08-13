@@ -137,7 +137,7 @@
     <table>
       <thead><tr>
         <th>报销日期</th><th>开票日期</th><th>阶段</th><th class="r">金额</th>
-        <th>发票号</th><th>备注</th><th>操作</th>
+        <th>发票号</th><th>相关文件</th><th>备注</th><th>操作</th>
       </tr></thead>
       <tbody>
       {% for rec in payments %}
@@ -147,6 +147,13 @@
           <td>{{ rec.stage or '—' }}</td>
           <td class="r">¥{{ rec.amount|money }}</td>
           <td>{{ rec.invoice_no or '—' }}</td>
+          <td class="cell-attach">
+            {% if rec.files %}
+            {% for f in rec.files %}
+            <a href="{{ url_for('payments.download_attachment', fid=f.id) }}" class="attach-link" title="{{ f.orig_name }}">{{ f.orig_name|basename }}</a>{% if not loop.last %}、{% endif %}
+            {% endfor %}
+            {% else %}—{% endif %}
+          </td>
           <td class="cell-remark" title="{{ rec.remark }}">{{ rec.remark or '—' }}</td>
           <td class="cell-actions">
             <button type="button" class="row-btn" onclick="openPreview({{ rec.id }})">预览</button>

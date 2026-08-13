@@ -237,6 +237,8 @@ td.link { color: var(--blue); font-weight: 700; }
 .mini-table th, .mini-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; }
 .mini-table th { background: transparent; color: var(--muted); font-weight: 600; }
 .cell-remark { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-attach { max-width: 200px; }
+.cell-attach .attach-link { font-size: 12px; }
 
 /* 合同附件 */
 .attach-list { display: flex; flex-direction: column; gap: 14px; }

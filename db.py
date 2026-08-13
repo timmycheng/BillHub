@@ -70,6 +70,15 @@ def init_db():
         UNIQUE (contract_id, seq)
     );
 
+    CREATE TABLE IF NOT EXISTS payment_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payment_id INTEGER NOT NULL,
+        orig_name TEXT,                       -- 原始文件名（展示用）
+        path TEXT NOT NULL,                   -- 存储路径
+        created_at TEXT DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (payment_id) REFERENCES payment_records(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,         -- 登录名
@@ -280,12 +289,12 @@ def list_payments(contract_id):
         'SELECT * FROM payment_records WHERE contract_id=? ORDER BY pay_date DESC, id DESC',
         (contract_id,)).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    return _with_files([dict(r) for r in rows])
 
 
 def list_all_payments(owner_id=None, limit=None):
     """全部报销记录（联表合同名）。传 owner_id 只返回该用户合同的记录；
-    limit 限制条数（仪表盘用）。按 id 倒序（最新在前）。"""
+    limit 限制条数（仪表盘用）。按 id 倒序（最新在前）。每条附带相关文件列表。"""
     sql = ('SELECT p.*, c.contract_name, c.contract_no FROM payment_records p '
            'JOIN contracts c ON c.id = p.contract_id')
     params = []
@@ -299,7 +308,26 @@ def list_all_payments(owner_id=None, limit=None):
     conn = get_conn()
     rows = conn.execute(sql, params).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    return _with_files([dict(r) for r in rows])
+
+
+def _with_files(records):
+    """给每条记录挂上 'files'（相关附件列表）。"""
+    if not records:
+        return records
+    conn = get_conn()
+    pids = [r['id'] for r in records]
+    placeholders = ','.join('?' * len(pids))
+    frows = conn.execute(
+        f'SELECT * FROM payment_files WHERE payment_id IN ({placeholders}) ORDER BY id',
+        pids).fetchall()
+    conn.close()
+    by_pid = {}
+    for f in frows:
+        by_pid.setdefault(f['payment_id'], []).append(dict(f))
+    for r in records:
+        r['files'] = by_pid.get(r['id'], [])
+    return records
 
 
 def get_payment(pid):
@@ -446,6 +474,39 @@ def backup_db():
     conn.execute(f"VACUUM INTO '{backup}'")
     conn.close()
     return backup
+
+
+# ============ 报销相关文件 ============
+def add_payment_file(payment_id, orig_name, path):
+    conn = get_conn()
+    cur = conn.execute(
+        'INSERT INTO payment_files (payment_id, orig_name, path) VALUES (?,?,?)',
+        (payment_id, orig_name, path))
+    conn.commit()
+    conn.close()
+    return cur.lastrowid
+
+
+def list_payment_files(payment_id):
+    conn = get_conn()
+    rows = conn.execute(
+        'SELECT * FROM payment_files WHERE payment_id=? ORDER BY id', (payment_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_payment_file(file_id):
+    conn = get_conn()
+    row = conn.execute('SELECT * FROM payment_files WHERE id=?', (file_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def delete_payment_file(file_id):
+    conn = get_conn()
+    conn.execute('DELETE FROM payment_files WHERE id=?', (file_id,))
+    conn.commit()
+    conn.close()
 
 
 # ============ 用户 CRUD ============
