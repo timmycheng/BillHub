@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}报销管理{% endblock %}
+{% block crumb %}<span>业务管理</span><span class="sep">/</span><strong>报销管理</strong>{% endblock %}
+{% block body %}
+<div class="page-head">
+  <div>
+    <h1>报销管理</h1>
+    <p>报销记录集中管理，可从合同详情页发起填报。</p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>报销单号</th><th>合同</th><th>阶段</th><th class="r">金额</th>
+        <th>发票号</th><th>填报时间</th><th>操作</th>
+      </tr></thead>
+      <tbody>
+      {% for rec in records %}
+        <tr>
+          <td class="muted">BX-{{ '%05d'|format(rec.id) }}</td>
+          <td><a href="{{ url_for('contracts.detail', cid=rec.contract_id) }}">{{ rec.contract_name }}</a></td>
+          <td>{{ rec.stage or '—' }}</td>
+          <td class="r">¥{{ rec.amount|money }}</td>
+          <td>{{ rec.invoice_no or '—' }}</td>
+          <td class="muted">{{ rec.created_at }}</td>
+          <td class="cell-actions">
+            <button type="button" class="row-btn" onclick="openPreview({{ rec.id }})">预览</button>
+            {% if rec.invoice_file %}
+            <a href="{{ url_for('payments.download_invoice', pid=rec.id) }}" class="row-btn">票据</a>
+            {% endif %}
+            {% if rec.report_file %}
+            <a href="{{ url_for('payments.download_report', pid=rec.id) }}" class="row-btn">Excel</a>
+            {% endif %}
+            <form method="post" action="{{ url_for('payments.delete', pid=rec.id) }}"
+                  onsubmit="return confirm('确定删除这条报销记录？')" style="display:inline">
+              <button type="submit" class="row-btn danger">删除</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="empty-row">暂无报销记录，请到合同详情页点击「＋ 填报报销」</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

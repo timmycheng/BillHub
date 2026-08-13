@@ -1,6 +1,6 @@
 {# 报销录入弹窗内容（HTMX 加载进 #modal-reimburse-content）#}
 <div class="reimburse-head">
-  <h3>🧾 报销录入</h3>
+  <h3>填报报销</h3>
   <span class="muted small">合同：{{ c.contract_name }}</span>
 </div>
 
@@ -24,7 +24,7 @@
     <label class="field"><span>报销日期</span>
       <input type="date" name="pay_date" value="{{ today }}"></label>
     <label class="field"><span>金额 *</span>
-      <input type="number" step="0.01" min="0" name="amount" required></label>
+      <input type="number" step="0.01" min="0" name="amount" required placeholder="0.00"></label>
     <label class="field"><span>阶段</span>
       {% if plan %}
       <select name="stage">
@@ -44,12 +44,12 @@
     <textarea name="remark" rows="2"></textarea></label>
 
   <div class="pay-actions">
-    <button type="submit" class="btn-primary">📥 生成报销单</button>
-    <button type="button" class="btn-ghost"
+    <button type="submit" class="btn primary">生成报销单</button>
+    <button type="button" class="btn ghost"
             hx-post="{{ url_for('preview.draft') }}" hx-include="#pay-form"
             hx-target="#modal-preview-content" hx-swap="innerHTML"
-            onclick="openModal('modal-preview')">👁 预览本次</button>
-    <button type="reset" class="btn-ghost">🔄 重置</button>
+            onclick="openModal('modal-preview')">预览本次</button>
+    <button type="reset" class="btn ghost">重置</button>
   </div>
 </form>
 

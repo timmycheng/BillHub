@@ -16,6 +16,15 @@ from web.auth import can_access_contract
 bp = Blueprint('payments', __name__)
 
 
+# ============ 报销管理页（全部记录）============
+@bp.route('/payments')
+@login_required
+def page():
+    owner = None if current_user.is_admin else int(current_user.id)
+    records = db.list_all_payments(owner_id=owner)
+    return render_template('payments.html', records=records)
+
+
 # ============ 报销表单（弹窗内容）============
 @bp.route('/payments/form/<int:cid>')
 @login_required
@@ -56,15 +65,15 @@ def create():
         amount = float(amount_raw)
     except ValueError:
         flash('金额格式错误', 'danger')
-        return redirect(url_for('main.dashboard', selected=cid))
+        return redirect(url_for('contracts.detail', cid=cid))
     if amount <= 0:
         flash('请输入本次报销金额', 'danger')
-        return redirect(url_for('main.dashboard', selected=cid))
+        return redirect(url_for('contracts.detail', cid=cid))
 
     template_path = current_app.config['APPROVAL_TEMPLATE']
     if not os.path.exists(template_path):
         flash(f'找不到审批表模板：{template_path}', 'danger')
-        return redirect(url_for('main.dashboard', selected=cid))
+        return redirect(url_for('contracts.detail', cid=cid))
 
     pay_date = request.form.get('pay_date', '').strip()
     invoice_date = request.form.get('invoice_date', '').strip()
@@ -79,7 +88,7 @@ def create():
         for old in db.list_invoice_nos():
             if re.sub(r'[^A-Za-z0-9]', '', old).upper() == norm:
                 flash(f'发票号「{invoice_no}」与历史记录「{old}」相同，不能重复填报！', 'danger')
-                return redirect(url_for('main.dashboard', selected=cid))
+                return redirect(url_for('contracts.detail', cid=cid))
 
     ctx, stages, _this_pay = build_report_context(
         c, pay_date, invoice_date, amount, invoice_no, stage, main_content, remark)
@@ -94,7 +103,7 @@ def create():
         template_engine.render_approval_template(template_path, out_path, ctx, stages)
     except Exception as e:
         flash(f'审批表生成失败：{e}', 'danger')
-        return redirect(url_for('main.dashboard', selected=cid))
+        return redirect(url_for('contracts.detail', cid=cid))
 
     # 保存本次上传的发票/收据文件
     invoice_file = ''
@@ -117,7 +126,7 @@ def create():
                              invoice_file=invoice_file, report_file=out_path,
                              user_id=int(current_user.id))
     flash('✅ 审批表已生成并保存记录！', 'success')
-    return redirect(url_for('main.dashboard', selected=cid, preview=new_pid))
+    return redirect(url_for('contracts.detail', cid=cid, preview=new_pid))
 
 
 # ============ 删除记录 ============
@@ -130,7 +139,7 @@ def delete(pid):
     _get_accessible_contract(rec['contract_id'])
     db.delete_payment(pid)
     flash('支付记录已删除（合同已付/剩余金额已重新计算）', 'success')
-    return redirect(url_for('main.dashboard', selected=rec['contract_id']))
+    return redirect(url_for('contracts.detail', cid=rec['contract_id']))
 
 
 # ============ 文件下载 ============
@@ -142,7 +151,7 @@ def _send_payment_file(pid, key, download_name):
     path = rec.get(key) or ''
     if not path or not os.path.exists(path):
         flash('该记录没有可用的文件（可能已移动或删除）', 'warning')
-        return redirect(url_for('main.dashboard', selected=rec['contract_id']))
+        return redirect(url_for('contracts.detail', cid=rec['contract_id']))
     return send_file(path, as_attachment=True, download_name=download_name)
 
 

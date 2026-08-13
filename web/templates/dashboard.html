@@ -1,96 +1,66 @@
 {% extends "base.html" %}
-{% block title %}合同管理{% endblock %}
-{% block header %}
-<header class="topbar">
-  <div class="brand">BillHub · 合同管理</div>
-  <div class="spacer"></div>
-  <div class="user-info">
-    {% if current_user.is_admin %}
-    <span class="badge">管理员</span>
-    <div class="dropdown" id="admin-menu">
-      <button type="button" class="btn-ghost dropdown-toggle"
-              onclick="toggleDropdown('admin-menu')">管理 ▾</button>
-      <div class="dropdown-menu">
-        <a href="{{ url_for('admin.users') }}">👥 用户管理</a>
-        <a href="{{ url_for('admin.backup') }}">💾 备份数据库</a>
-      </div>
-    </div>
-    {% endif %}
-    <div class="dropdown" id="user-menu">
-      <button type="button" class="btn-ghost dropdown-toggle"
-              onclick="toggleDropdown('user-menu')">{{ current_user.display_name }} ▾</button>
-      <div class="dropdown-menu">
-        <a href="{{ url_for('auth.change_password') }}">🔑 修改密码</a>
-        <a href="{{ url_for('auth.logout') }}">🚪 退出登录</a>
-      </div>
-    </div>
-  </div>
-</header>
-{% endblock %}
+{% block title %}工作台{% endblock %}
 {% block body %}
-<div class="page">
-  <div class="page-toolbar">
-    <input type="text" name="q" value="{{ q }}" class="search-input"
-           placeholder="🔍 搜索合同编号 / 名称…"
-           hx-get="{{ url_for('contracts.rows') }}"
-           hx-trigger="keyup changed delay:300ms"
-           hx-target="#contract-tbody" hx-swap="innerHTML" hx-include="this">
-    <div class="page-actions">
-      <a href="{{ url_for('contracts.new') }}" class="btn-primary">＋ 新增合同</a>
-      {% if current_user.is_admin %}
-      <a href="{{ url_for('contracts.export') }}" class="btn-ghost">导出</a>
-      <button type="button" class="btn-ghost" onclick="document.getElementById('import-file').click()">导入</button>
-      <form method="post" action="{{ url_for('contracts.import_file') }}" enctype="multipart/form-data" style="display:none">
-        <input id="import-file" type="file" name="file" accept=".xlsx" onchange="this.form.submit()">
-      </form>
-      {% endif %}
+<div class="page-head">
+  <div>
+    <h1>工作台</h1>
+    <p>合同付款、报销执行情况一览。</p>
+  </div>
+  <div class="head-actions">
+    <a href="{{ url_for('contracts.new') }}" class="btn primary">＋ 新建合同</a>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-top"><span>合同数量</span><div class="stat-icon blue">▣</div></div>
+    <div class="stat-num">{{ stats.count }}</div>
+    <div class="stat-foot"><a href="{{ url_for('contracts.list') }}">查看合同清单 →</a></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><span>合同总额</span><div class="stat-icon teal">￥</div></div>
+    <div class="stat-num">¥{{ stats.total|money }}</div>
+    <div class="stat-foot">全部合同金额合计</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><span>已付款</span><div class="stat-icon green">✓</div></div>
+    <div class="stat-num">¥{{ stats.paid|money }}</div>
+    <div class="stat-foot">付款完成率
+      <strong>{{ '%d'|format(stats.paid / stats.total * 100) if stats.total else 0 }}%</strong>
     </div>
   </div>
-
-  <table class="contract-table">
-    <thead>
-      <tr>
-        <th>合同编号</th>
-        <th>合同名称</th>
-        <th>签订单位</th>
-        {% if current_user.is_admin %}<th>经办人</th>{% endif %}
-        <th class="r">合同总额</th>
-        <th class="r">已付</th>
-        <th class="r">剩余</th>
-        <th style="min-width:160px">付款进度</th>
-        <th class="actions-col">操作</th>
-      </tr>
-    </thead>
-    <tbody id="contract-tbody">
-      {% include '_contract_rows.html' %}
-    </tbody>
-  </table>
-</div>
-
-{# ===== 报销弹窗 ===== #}
-<div id="modal-reimburse" class="modal" hidden>
-  <div class="modal-backdrop" onclick="closeModal('modal-reimburse')"></div>
-  <div class="modal-dialog modal-lg">
-    <button class="modal-close" onclick="closeModal('modal-reimburse')">✕</button>
-    <div id="modal-reimburse-content" class="modal-body"></div>
+  <div class="stat-card">
+    <div class="stat-top"><span>待付款</span><div class="stat-icon orange">◷</div></div>
+    <div class="stat-num">¥{{ stats.remaining|money }}</div>
+    <div class="stat-foot">剩余未付金额合计</div>
   </div>
 </div>
 
-{# ===== 审批表预览弹窗 ===== #}
-<div id="modal-preview" class="modal" hidden>
-  <div class="modal-backdrop" onclick="closeModal('modal-preview')"></div>
-  <div class="modal-dialog modal-xl">
-    <button class="modal-close" onclick="closeModal('modal-preview')">✕</button>
-    <div id="modal-preview-content" class="modal-body"></div>
+<div class="panel">
+  <div class="panel-head">
+    <div><h3>最近报销记录</h3><span class="muted">最新 {{ recent|length }} 条</span></div>
+    <button class="text-btn" onclick="location.href='{{ url_for('payments.page') }}'">查看全部 →</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>合同名称</th><th>阶段</th><th class="r">金额</th><th>发票号</th><th>填报时间</th><th>操作</th>
+      </tr></thead>
+      <tbody>
+      {% for rec in recent %}
+        <tr>
+          <td><a href="{{ url_for('contracts.detail', cid=rec.contract_id) }}">{{ rec.contract_name }}</a></td>
+          <td>{{ rec.stage or '—' }}</td>
+          <td class="r">¥{{ rec.amount|money }}</td>
+          <td>{{ rec.invoice_no or '—' }}</td>
+          <td class="muted">{{ rec.created_at }}</td>
+          <td><button type="button" class="row-btn" onclick="openPreview({{ rec.id }})">预览</button></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty-row">暂无报销记录</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-{% if preview %}
-// 生成报销单后 redirect 带 ?preview= 时自动弹预览
-document.addEventListener('DOMContentLoaded', function () { openPreview({{ preview }}); });
-{% endif %}
-</script>
 {% endblock %}
