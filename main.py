@@ -999,7 +999,7 @@ class MainWindow(QMainWindow):
     def show_about(self):
         QMessageBox.about(self, '关于 BillHub',
             'BillHub —— 智能行项目结算报销工具\n\n'
-            '版本：1.2.0\n'
+            '版本：1.2.2\n'
             '功能：合同管理（付款计划 / 分类 / 收款信息）\n'
             '      OCR 发票识别（图片 / PDF）\n'
             '      模板驱动审批表生成（统一归档）\n'
