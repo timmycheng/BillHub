@@ -36,6 +36,8 @@ def init_db():
         bank_account TEXT,                     -- 银行账号
         total_amount REAL NOT NULL,            -- 合同总金额
         sign_date TEXT,                        -- 签订日期 YYYY-MM-DD
+        start_date TEXT,                       -- 生效时间 YYYY-MM-DD
+        end_date TEXT,                         -- 结束时间 YYYY-MM-DD
         remark TEXT,                           -- 备注
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
@@ -89,6 +91,8 @@ _NEW_COLUMNS = {  # 增量迁移：列名 -> 定义
     'payee': 'TEXT',
     'bank_name': 'TEXT',
     'bank_account': 'TEXT',
+    'start_date': 'TEXT',
+    'end_date': 'TEXT',
 }
 
 
@@ -165,16 +169,18 @@ def _migrate_contracts():
 
 # ============ 合同 CRUD ============
 def add_contract(contract_no, contract_name, customer_name, total_amount, sign_date='', remark='',
-                 contract_manager='', category='', payee='', bank_name='', bank_account='', owner_id=None):
+                 contract_manager='', category='', payee='', bank_name='', bank_account='',
+                 start_date='', end_date='', owner_id=None):
     conn = get_conn()
     try:
         cur = conn.execute(
             'INSERT INTO contracts (contract_no, contract_name, customer_name, contract_manager, '
-            'category, payee, bank_name, bank_account, total_amount, sign_date, remark, owner_id) '
-            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+            'category, payee, bank_name, bank_account, total_amount, sign_date, '
+            'start_date, end_date, remark, owner_id) '
+            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             (contract_no.strip() or None, contract_name, customer_name, contract_manager,
              category, payee, bank_name, bank_account, float(total_amount),
-             sign_date, remark, owner_id))
+             sign_date, start_date, end_date, remark, owner_id))
         conn.commit()
         return cur.lastrowid
     except sqlite3.IntegrityError:
@@ -184,15 +190,16 @@ def add_contract(contract_no, contract_name, customer_name, total_amount, sign_d
 
 
 def update_contract(cid, contract_no, contract_name, customer_name, total_amount, sign_date='', remark='',
-                    contract_manager='', category='', payee='', bank_name='', bank_account='', owner_id=None):
+                    contract_manager='', category='', payee='', bank_name='', bank_account='',
+                    start_date='', end_date='', owner_id=None):
     conn = get_conn()
     conn.execute(
         'UPDATE contracts SET contract_no=?, contract_name=?, customer_name=?, contract_manager=?, '
-        'category=?, payee=?, bank_name=?, bank_account=?, total_amount=?, sign_date=?, remark=?, '
-        'owner_id=? WHERE id=?',
+        'category=?, payee=?, bank_name=?, bank_account=?, total_amount=?, sign_date=?, '
+        'start_date=?, end_date=?, remark=?, owner_id=? WHERE id=?',
         (contract_no.strip() or None, contract_name, customer_name, contract_manager,
          category, payee, bank_name, bank_account, float(total_amount),
-         sign_date, remark, owner_id, cid))
+         sign_date, start_date, end_date, remark, owner_id, cid))
     conn.commit()
     conn.close()
 

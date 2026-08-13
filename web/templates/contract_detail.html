@@ -31,6 +31,8 @@
       <div><label>经办人</label><strong>{{ owner_name or '—' }}</strong></div>
       <div><label>签订单位</label><strong>{{ c.customer_name or '—' }}</strong></div>
       <div><label>签订日期</label><strong>{{ c.sign_date or '—' }}</strong></div>
+      <div><label>生效时间</label><strong>{{ c.start_date or '—' }}</strong></div>
+      <div><label>结束时间</label><strong>{{ c.end_date or '—' }}</strong></div>
       <div><label>收款单位</label><strong>{{ c.payee or '—' }}</strong></div>
       <div><label>开户银行</label><strong>{{ c.bank_name or '—' }}</strong></div>
       <div class="wide"><label>银行账号</label><strong>{{ c.bank_account or '—' }}</strong></div>
