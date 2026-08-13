@@ -30,6 +30,12 @@
       <option value="{{ cat }}" {{ 'selected' if category == cat }}>{{ cat }}</option>
       {% endfor %}
     </select>
+    <select name="status" onchange="this.form.submit()">
+      <option value="">全部状态</option>
+      <option value="active" {{ 'selected' if status == 'active' }}>生效中</option>
+      <option value="pending" {{ 'selected' if status == 'pending' }}>未生效</option>
+      <option value="expired" {{ 'selected' if status == 'expired' }}>已失效</option>
+    </select>
     <button type="submit" class="btn ghost">筛选</button>
   </form>
 
@@ -45,6 +51,8 @@
           <th class="r">已付款</th>
           <th class="r">剩余</th>
           <th style="min-width:150px">付款进度</th>
+          <th>签订</th>
+          <th>生效状态</th>
           <th>操作</th>
         </tr>
       </thead>
@@ -64,6 +72,15 @@
               <span class="progress-text">{{ r.pct }}%</span>
             </div>
           </td>
+          <td>
+            {% if r.status.signed_bool %}<span class="tag green">已签订</span>
+            {% else %}<span class="tag gray">未签订</span>{% endif %}
+          </td>
+          <td>
+            {% if r.status.effective_key == 'active' %}<span class="tag green">生效中</span>
+            {% elif r.status.effective_key == 'expired' %}<span class="tag gray">已失效</span>
+            {% else %}<span class="tag orange">未生效</span>{% endif %}
+          </td>
           <td class="cell-actions">
             <button type="button" class="btn primary small" onclick="openReimburse({{ r.c.id }})">报销</button>
             <a href="{{ url_for('contracts.detail', cid=r.c.id) }}" class="row-btn">详情</a>
@@ -71,8 +88,8 @@
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="{{ 9 if current_user.is_admin else 8 }}" class="empty-row">
-          {{ '无匹配合同' if q or category else '暂无合同，点击「＋ 新建合同」开始' }}
+        <tr><td colspan="{{ 11 if current_user.is_admin else 10 }}" class="empty-row">
+          {{ '无匹配合同' if q or category or status else '暂无合同，点击「＋ 新建合同」开始' }}
         </td></tr>
       {% endfor %}
       </tbody>
