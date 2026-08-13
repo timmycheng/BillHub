@@ -1,9 +1,11 @@
-{# 合同表格行（dashboard 初始渲染与搜索 HTMX 刷新共用）#}
+{# 合同表格行（dashboard 初始渲染与搜索 HTMX 刷新共用） #}
+{% set ncols = 9 if current_user.is_admin else 8 %}
 {% for r in rows %}
 <tr class="contract-row">
   <td class="muted">{{ r.c.contract_no or '—' }}</td>
   <td class="contract-name">{{ r.c.contract_name }}</td>
   <td>{{ r.c.customer_name or '—' }}</td>
+  {% if current_user.is_admin %}<td>{{ r.owner_name or '—' }}</td>{% endif %}
   <td class="r">¥{{ r.s.total|money }}</td>
   <td class="r">¥{{ r.s.paid|money }}</td>
   <td class="r {{ 'neg' if r.s.remaining > 0 else 'pos' }}">¥{{ r.s.remaining|money }}</td>
@@ -24,10 +26,10 @@
   </td>
 </tr>
 <tr class="expand-row" id="expand-row-{{ r.c.id }}">
-  <td colspan="8"><div id="expand-{{ r.c.id }}" class="expand-content"></div></td>
+  <td colspan="{{ ncols }}"><div id="expand-{{ r.c.id }}" class="expand-content"></div></td>
 </tr>
 {% else %}
-<tr><td colspan="8" class="empty-row">
+<tr><td colspan="{{ ncols }}" class="empty-row">
   {{ '无匹配合同' if q else '暂无合同，点击「＋ 新增合同」开始' }}
 </td></tr>
 {% endfor %}

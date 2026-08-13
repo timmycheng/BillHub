@@ -23,18 +23,28 @@ def _owner_filter():
 
 
 def build_rows(owner, q=''):
-    """返回 [{c, s(stats), pct}]，供表格行渲染。"""
+    """返回 [{c, s(stats), pct, owner_name}]，供表格行渲染。"""
     contracts = db.list_contracts(owner_id=owner)
     if q:
         ql = q.lower()
         contracts = [c for c in contracts
                      if q in (c['contract_no'] or '') or ql in (c['contract_name'] or '').lower()]
+    users = {u['id']: u for u in db.list_users()}
     rows = []
     for c in contracts:
         s = db.get_contract_stats(c['id'])
         pct = int(round(s['paid'] / s['total'] * 100)) if s['total'] else 0
-        rows.append({'c': c, 's': s, 'pct': min(pct, 100)})
+        owner_u = users.get(c.get('owner_id'))
+        owner_name = (owner_u['display_name'] if owner_u else None) \
+            or c.get('contract_manager') or ''
+        rows.append({'c': c, 's': s, 'pct': min(pct, 100), 'owner_name': owner_name})
     return rows
+
+
+def _owner_display(owner_id):
+    """归属用户的显示名（缺失时回退当前用户显示名）。"""
+    u = db.get_user(owner_id) if owner_id else None
+    return (u['display_name'] if u else None) or current_user.display_name
 
 
 @bp.route('/contracts/rows')
@@ -128,9 +138,14 @@ def new():
         if err:
             flash(err, 'danger')
             return _render_form(None, request.form)
-        # 经办人=当前登录用户（表单不再提供该字段）
-        data['contract_manager'] = current_user.display_name
-        cid = db.add_contract(owner_id=int(current_user.id), **data)
+        # 归属用户：管理员可指定（下拉），普通用户固定为自己
+        owner_id = int(current_user.id)
+        if current_user.is_admin:
+            posted = request.form.get('owner_id', type=int)
+            if posted and db.get_user(posted):
+                owner_id = posted
+        data['contract_manager'] = _owner_display(owner_id)
+        cid = db.add_contract(owner_id=owner_id, **data)
         if cid is None:
             flash('合同编号已存在', 'danger')
             return _render_form(None, request.form)
@@ -152,10 +167,15 @@ def edit(cid):
         if err:
             flash(err, 'danger')
             return _render_form(c, request.form)
-        # 编辑时不改经办人（表单无此字段，保留原值）
-        if not data['contract_manager']:
-            data['contract_manager'] = c['contract_manager']
-        db.update_contract(cid, owner_id=c['owner_id'], **data)
+        # 归属用户：管理员可改（下拉），普通用户保持不变（其只能看到自己的合同）
+        owner_id = c['owner_id'] if c.get('owner_id') else int(current_user.id)
+        if current_user.is_admin:
+            posted = request.form.get('owner_id', type=int)
+            if posted and db.get_user(posted):
+                owner_id = posted
+        # 经办人文本随归属用户同步
+        data['contract_manager'] = _owner_display(owner_id)
+        db.update_contract(cid, owner_id=owner_id, **data)
         db.save_payment_plan(cid, _parse_plan_rows(request.form))
         flash('合同已更新', 'success')
         return redirect(url_for('main.dashboard'))
@@ -246,5 +266,17 @@ def _render_form(contract, formdata):
     if not plan_rows:
         plan_rows = [{'seq': 1, 'condition': '', 'ratio': None, 'amount': 0.0}]
 
+    # 经办人（归属用户）：管理员可改，普通用户固定为自己
+    users = db.list_users() if current_user.is_admin else []
+    if contract and contract.get('owner_id'):
+        cur_owner_id = contract['owner_id']
+    else:
+        cur_owner_id = int(current_user.id)
+    if formdata is not None:
+        posted = formdata.get('owner_id', type=int)
+        if posted:
+            cur_owner_id = posted
+
     return render_template('contract_form.html', contract=contract, values=values,
-                           categories=CONTRACT_CATEGORIES, plan_rows=plan_rows)
+                           categories=CONTRACT_CATEGORIES, plan_rows=plan_rows,
+                           users=users, cur_owner_id=cur_owner_id)
