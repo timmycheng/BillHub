@@ -17,7 +17,7 @@ uploads/
 data/
 test/
 models/
-templates/
+/templates/
 
 # Generated report files
 合同清单_*.xlsx

@@ -263,6 +263,25 @@ def list_payments(contract_id):
     return [dict(r) for r in rows]
 
 
+def list_all_payments(owner_id=None, limit=None):
+    """全部报销记录（联表合同名）。传 owner_id 只返回该用户合同的记录；
+    limit 限制条数（仪表盘用）。按 id 倒序（最新在前）。"""
+    sql = ('SELECT p.*, c.contract_name, c.contract_no FROM payment_records p '
+           'JOIN contracts c ON c.id = p.contract_id')
+    params = []
+    if owner_id is not None:
+        sql += ' WHERE c.owner_id=?'
+        params.append(owner_id)
+    sql += ' ORDER BY p.id DESC'
+    if limit:
+        sql += ' LIMIT ?'
+        params.append(int(limit))
+    conn = get_conn()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_payment(pid):
     conn = get_conn()
     row = conn.execute('SELECT * FROM payment_records WHERE id=?', (pid,)).fetchone()

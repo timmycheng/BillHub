@@ -1,27 +1,105 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}BillHub{% endblock %} · BillHub</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ cache_bust }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{% block title %}工作台{% endblock %} · BillHub</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ cache_bust }}">
 </head>
 <body>
-    {% block header %}{% endblock %}
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-container">
-          {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
+{% block shell %}
+{% set ep = request.endpoint or '' %}
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">B</div>
+      <div>
+        <div class="brand-title">BillHub</div>
+        <div class="brand-sub">合同付款与报销平台</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group-title">工作台</div>
+      <a class="nav-item {{ 'active' if ep == 'main.dashboard' }}"
+         href="{{ url_for('main.dashboard') }}"><span>◈</span> Dashboard</a>
+
+      <div class="nav-group-title">业务管理</div>
+      <a class="nav-item {{ 'active' if ep.startswith('contracts.') or ep.startswith('preview.') }}"
+         href="{{ url_for('contracts.list') }}"><span>▣</span> 合同管理</a>
+      <a class="nav-item {{ 'active' if ep.startswith('payments.') }}"
+         href="{{ url_for('payments.page') }}"><span>￥</span> 报销管理</a>
+
+      {% if current_user.is_admin %}
+      <div class="nav-group-title">系统管理</div>
+      <a class="nav-item {{ 'active' if ep.startswith('admin.') }}"
+         href="{{ url_for('admin.users') }}"><span>◎</span> 用户管理</a>
       {% endif %}
-    {% endwith %}
-    <main>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="mini-user">
+        <div class="avatar">{{ (current_user.display_name or current_user.username)[:1] }}</div>
+        <div>
+          <div class="mini-name">{{ current_user.display_name }}</div>
+          <div class="mini-role">{{ '管理员' if current_user.is_admin else '经办人' }}</div>
+        </div>
+      </div>
+      <div class="version">BillHub v2.0 · 内部版</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        {% block crumb %}<span>工作台</span><span class="sep">/</span><strong>Dashboard</strong>{% endblock %}
+      </div>
+      <div class="top-actions">
+        <div class="date-chip"></div>
+        <div class="dropdown" id="user-menu">
+          <button type="button" class="dropdown-toggle" onclick="toggleDropdown('user-menu')">
+            <div class="avatar">{{ (current_user.display_name or current_user.username)[:1] }}</div>
+            <div class="profile-text">
+              <strong>{{ current_user.display_name }}</strong>
+              <span>{{ '管理员' if current_user.is_admin else '经办人' }}</span>
+            </div>
+            <span class="chev">⌄</span>
+          </button>
+          <div class="dropdown-menu">
+            <a href="{{ url_for('auth.change_password') }}">🔑 修改密码</a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('admin.backup') }}">💾 备份数据库</a>
+            {% endif %}
+            <a href="{{ url_for('auth.logout') }}">🚪 退出登录</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="content">
+      {% include '_flash.html' %}
       {% block body %}{% endblock %}
-    </main>
-    <script src="{{ url_for('static', filename='htmx.min.js') }}?v={{ cache_bust }}"></script>
-    <script src="{{ url_for('static', filename='app.js') }}?v={{ cache_bust }}"></script>
-    {% block scripts %}{% endblock %}
+    </section>
+  </main>
+</div>
+
+{# ===== 报销弹窗 ===== #}
+<div id="modal-reimburse" class="modal" hidden>
+  <div class="modal-dialog modal-lg">
+    <button class="modal-close" onclick="closeModal('modal-reimburse')">✕</button>
+    <div id="modal-reimburse-content" class="modal-body"></div>
+  </div>
+</div>
+
+{# ===== 审批表预览弹窗 ===== #}
+<div id="modal-preview" class="modal" hidden>
+  <div class="modal-dialog modal-xl">
+    <button class="modal-close" onclick="closeModal('modal-preview')">✕</button>
+    <div id="modal-preview-content" class="modal-body"></div>
+  </div>
+</div>
+{% endblock %}
+
+<script src="{{ url_for('static', filename='htmx.min.js') }}?v={{ cache_bust }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v={{ cache_bust }}"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

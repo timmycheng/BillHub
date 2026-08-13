@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}合同管理{% endblock %}
+{% block crumb %}<span>业务管理</span><span class="sep">/</span><strong>合同管理</strong>{% endblock %}
+{% block body %}
+<div class="page-head">
+  <div>
+    <h1>合同管理</h1>
+    <p>统一管理合同台账、付款计划、附件及执行状态。</p>
+  </div>
+  <div class="head-actions">
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('contracts.export') }}" class="btn ghost">导出清单</a>
+    <button type="button" class="btn ghost" onclick="document.getElementById('import-file').click()">导入清单</button>
+    <form method="post" action="{{ url_for('contracts.import_file') }}" enctype="multipart/form-data" style="display:none">
+      <input id="import-file" type="file" name="file" accept=".xlsx" onchange="this.form.submit()">
+    </form>
+    {% endif %}
+    <a href="{{ url_for('contracts.new') }}" class="btn primary">＋ 新建合同</a>
+  </div>
+</div>
+
+<div class="panel">
+  <form class="filter-row" method="get" action="{{ url_for('contracts.list') }}">
+    <div class="search"><span>⌕</span>
+      <input type="text" name="q" value="{{ q }}" placeholder="搜索合同编号、合同名称、签订单位">
+    </div>
+    <select name="category" onchange="this.form.submit()">
+      <option value="">全部分类</option>
+      {% for cat in categories %}
+      <option value="{{ cat }}" {{ 'selected' if category == cat }}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn ghost">筛选</button>
+  </form>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>合同编号</th>
+          <th>合同名称</th>
+          <th>签订单位</th>
+          {% if current_user.is_admin %}<th>经办人</th>{% endif %}
+          <th class="r">合同总额</th>
+          <th class="r">已付款</th>
+          <th class="r">剩余</th>
+          <th style="min-width:150px">付款进度</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="muted">{{ r.c.contract_no or '—' }}</td>
+          <td><a href="{{ url_for('contracts.detail', cid=r.c.id) }}"><strong>{{ r.c.contract_name }}</strong></a></td>
+          <td>{{ r.c.customer_name or '—' }}</td>
+          {% if current_user.is_admin %}<td>{{ r.owner_name or '—' }}</td>{% endif %}
+          <td class="r">¥{{ r.s.total|money }}</td>
+          <td class="r">¥{{ r.s.paid|money }}</td>
+          <td class="r {{ 'neg' if r.s.remaining > 0 else 'pos' }}">¥{{ r.s.remaining|money }}</td>
+          <td>
+            <div class="progress">
+              <div class="{{ 'done' if r.pct >= 100 }}" style="width:{{ r.pct }}%"></div>
+              <span class="progress-text">{{ r.pct }}%</span>
+            </div>
+          </td>
+          <td class="cell-actions">
+            <button type="button" class="btn primary small" onclick="openReimburse({{ r.c.id }})">报销</button>
+            <a href="{{ url_for('contracts.detail', cid=r.c.id) }}" class="row-btn">详情</a>
+            <a href="{{ url_for('contracts.edit', cid=r.c.id) }}" class="row-btn">编辑</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="{{ 9 if current_user.is_admin else 8 }}" class="empty-row">
+          {{ '无匹配合同' if q or category else '暂无合同，点击「＋ 新建合同」开始' }}
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination"><span>共 {{ rows|length }} 条</span></div>
+</div>
+{% endblock %}

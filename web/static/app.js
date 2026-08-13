@@ -1,4 +1,4 @@
-/* BillHub 前端：弹窗（报销/预览）+ 合同行展开 */
+/* BillHub 2.0 前端：弹窗 / 下拉菜单 / Flash 自动消失 / 日期 */
 function openModal(id) {
   var m = document.getElementById(id);
   if (m) { m.removeAttribute('hidden'); document.body.classList.add('modal-open'); }
@@ -10,6 +10,16 @@ function closeModal(id) {
     document.body.classList.remove('modal-open');
   }
 }
+// 点击遮罩（弹窗根节点自身）关闭
+document.addEventListener('click', function (e) {
+  if (e.target.classList && e.target.classList.contains('modal')) {
+    closeModal(e.target.id);
+  }
+  // 点击别处关闭下拉
+  if (!e.target.closest('.dropdown')) {
+    document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
+  }
+});
 // ESC 关闭最上层弹窗，其次关闭下拉菜单
 document.addEventListener('keydown', function (e) {
   if (e.key !== 'Escape') return;
@@ -30,13 +40,8 @@ function openPreview(pid) {
     { target: '#modal-preview-content', swap: 'innerHTML' });
   openModal('modal-preview');
 }
-// 合同行展开/收起
-function toggleExpand(cid) {
-  var row = document.getElementById('expand-row-' + cid);
-  if (row) row.classList.toggle('open');
-}
 
-// 顶栏下拉菜单（管理 / 用户）
+// 顶栏下拉菜单
 function toggleDropdown(id) {
   var dd = document.getElementById(id);
   if (!dd) return;
@@ -44,9 +49,20 @@ function toggleDropdown(id) {
   document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
   if (willOpen) dd.classList.add('open');
 }
-// 点击别处关闭下拉
-document.addEventListener('click', function (e) {
-  if (!e.target.closest('.dropdown')) {
-    document.querySelectorAll('.dropdown.open').forEach(function (d) { d.classList.remove('open'); });
-  }
+
+document.addEventListener('DOMContentLoaded', function () {
+  // 顶栏日期
+  document.querySelectorAll('.date-chip').forEach(function (el) {
+    var d = new Date();
+    el.textContent = d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  });
+  // Flash 消息 4 秒后自动淡出
+  document.querySelectorAll('.flash-container .flash').forEach(function (f) {
+    setTimeout(function () {
+      f.classList.add('hide');
+      setTimeout(function () { f.remove(); }, 350);
+    }, 4000);
+  });
 });

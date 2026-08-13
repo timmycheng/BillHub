@@ -1,87 +1,86 @@
 {% extends "base.html" %}
-{% block title %}{{ '编辑合同' if contract else '新增合同' }}{% endblock %}
-{% block header %}
-<header class="topbar">
-  <a href="{{ url_for('main.dashboard') }}" class="btn-ghost">‹ 返回</a>
-  <div class="brand">{{ '编辑合同' if contract else '新增合同' }}</div>
-</header>
-{% endblock %}
+{% block title %}{{ '编辑合同' if contract else '新建合同' }}{% endblock %}
+{% block crumb %}<span>业务管理</span><span class="sep">/</span><a href="{{ url_for('contracts.list') }}">合同管理</a><span class="sep">/</span><strong>{{ '编辑合同' if contract else '新建合同' }}</strong>{% endblock %}
 {% block body %}
-<div class="form-wrap">
-  <form method="post">
-    <fieldset class="form-section">
-      <legend>基本信息</legend>
-      <div class="form-grid">
-        <label class="field"><span>合同编号（可选）</span>
-          <input type="text" name="contract_no" value="{{ values.contract_no }}"></label>
-        <label class="field"><span>合同名称 *</span>
-          <input type="text" name="contract_name" value="{{ values.contract_name }}" required></label>
-        <label class="field"><span>签订单位</span>
-          <input type="text" name="customer_name" value="{{ values.customer_name }}"></label>
-        {% if current_user.is_admin %}
-        <label class="field"><span>经办人（归属用户）</span>
-          <select name="owner_id">
-            {% for u in users %}
-            <option value="{{ u.id }}" {{ 'selected' if u.id == cur_owner_id }}>
-              {{ u.display_name or u.username }}（{{ u.username }}）
-            </option>
-            {% endfor %}
-          </select>
-        </label>
-        {% else %}
-        <label class="field"><span>经办人</span>
-          <input type="text" value="{{ current_user.display_name }}" disabled></label>
-        {% endif %}
-        <label class="field"><span>分类</span>
-          <select name="category">
-            <option value="">（未分类）</option>
-            {% for cat in categories %}
-            <option value="{{ cat }}" {{ 'selected' if values.category == cat }}>{{ cat }}</option>
-            {% endfor %}
-            {% if values.category and values.category not in categories %}
-            <option value="{{ values.category }}" selected>{{ values.category }}</option>
-            {% endif %}
-          </select>
-        </label>
-        <label class="field"><span>合同总金额 *</span>
-          <input type="number" step="0.01" min="0" name="total_amount"
-                 value="{{ values.total_amount }}" required></label>
-        <label class="field"><span>签订日期</span>
-          <input type="date" name="sign_date" value="{{ values.sign_date }}"></label>
-        <label class="field"><span>收款单位</span>
-          <input type="text" name="payee" value="{{ values.payee }}"></label>
-        <label class="field"><span>开户银行</span>
-          <input type="text" name="bank_name" value="{{ values.bank_name }}"></label>
-        <label class="field"><span>银行账号</span>
-          <input type="text" name="bank_account" value="{{ values.bank_account }}"></label>
-      </div>
-      <label class="field"><span>备注</span>
-        <textarea name="remark" rows="2">{{ values.remark }}</textarea></label>
-    </fieldset>
+<div class="page-head">
+  <div>
+    <button class="back-btn" onclick="location.href='{{ url_for('contracts.list') if not contract else url_for('contracts.detail', cid=contract.id) }}'">← 返回</button>
+    <h1>{{ '编辑合同' if contract else '新建合同' }}</h1>
+    <p>建立合同基本信息，后续可继续添加付款计划。</p>
+  </div>
+</div>
 
-    <fieldset class="form-section">
-      <legend>📅 付款计划（比例列修改时按合同总额自动算金额）</legend>
-      <table class="plan-edit" id="plan-table">
-        <thead><tr><th>期</th><th>比例(%)</th><th>金额(元)</th><th></th></tr></thead>
-        <tbody id="plan-body">
-        {% for r in plan_rows %}
-          <tr class="plan-row">
-            <td class="seq">{{ loop.index }}</td>
-            <td><input type="text" name="plan_ratio" class="ratio-input"
-                       value="{{ '%g'|format(r.ratio*100) if r.ratio is not none else '' }}"></td>
-            <td><input type="text" name="plan_amount" class="amount-input"
-                       value="{{ '%.2f'|format(r.amount) if r.amount else '' }}"></td>
-            <td><button type="button" class="btn-ghost btn-sm row-del">✕</button></td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      <button type="button" class="btn-ghost btn-sm" id="add-row">＋ 添加一期</button>
-    </fieldset>
+<div class="panel form-panel">
+  <form method="post">
+    <div class="form-section-title">基本信息</div>
+    <div class="form-grid">
+      <label class="field"><span>合同编号（可选）</span>
+        <input type="text" name="contract_no" value="{{ values.contract_no }}" placeholder="如 HT-2026-001"></label>
+      <label class="field"><span>合同名称 *</span>
+        <input type="text" name="contract_name" value="{{ values.contract_name }}" required placeholder="请输入合同名称"></label>
+      <label class="field"><span>签订单位</span>
+        <input type="text" name="customer_name" value="{{ values.customer_name }}" placeholder="对方单位名称"></label>
+      {% if current_user.is_admin %}
+      <label class="field"><span>经办人（归属用户）</span>
+        <select name="owner_id">
+          {% for u in users %}
+          <option value="{{ u.id }}" {{ 'selected' if u.id == cur_owner_id }}>
+            {{ u.display_name or u.username }}（{{ u.username }}）
+          </option>
+          {% endfor %}
+        </select>
+      </label>
+      {% else %}
+      <label class="field"><span>经办人</span>
+        <input type="text" value="{{ current_user.display_name }}" disabled></label>
+      {% endif %}
+      <label class="field"><span>分类</span>
+        <select name="category">
+          <option value="">（未分类）</option>
+          {% for cat in categories %}
+          <option value="{{ cat }}" {{ 'selected' if values.category == cat }}>{{ cat }}</option>
+          {% endfor %}
+          {% if values.category and values.category not in categories %}
+          <option value="{{ values.category }}" selected>{{ values.category }}</option>
+          {% endif %}
+        </select>
+      </label>
+      <label class="field"><span>合同总金额 *</span>
+        <input type="number" step="0.01" min="0" name="total_amount"
+               value="{{ values.total_amount }}" required placeholder="0.00"></label>
+      <label class="field"><span>签订日期</span>
+        <input type="date" name="sign_date" value="{{ values.sign_date }}"></label>
+      <label class="field"><span>收款单位</span>
+        <input type="text" name="payee" value="{{ values.payee }}" placeholder="请输入收款单位"></label>
+      <label class="field"><span>开户银行</span>
+        <input type="text" name="bank_name" value="{{ values.bank_name }}" placeholder="请输入开户银行"></label>
+      <label class="field"><span>银行账号</span>
+        <input type="text" name="bank_account" value="{{ values.bank_account }}" placeholder="请输入银行账号"></label>
+      <label class="field wide"><span>备注</span>
+        <textarea name="remark" rows="2">{{ values.remark }}</textarea></label>
+    </div>
+
+    <div class="form-section-title">付款计划（比例列修改时按合同总额自动算金额）</div>
+    <table class="plan-edit" id="plan-table">
+      <thead><tr><th>期</th><th>比例(%)</th><th>金额(元)</th><th style="width:40px"></th></tr></thead>
+      <tbody id="plan-body">
+      {% for r in plan_rows %}
+        <tr class="plan-row">
+          <td class="seq">{{ loop.index }}</td>
+          <td><input type="text" name="plan_ratio" class="ratio-input"
+                     value="{{ '%g'|format(r.ratio*100) if r.ratio is not none else '' }}"></td>
+          <td><input type="text" name="plan_amount" class="amount-input"
+                     value="{{ '%.2f'|format(r.amount) if r.amount else '' }}"></td>
+          <td><button type="button" class="row-btn danger row-del">✕</button></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <button type="button" class="btn ghost small" id="add-row">＋ 添加一期</button>
 
     <div class="form-actions">
-      <a href="{{ url_for('main.dashboard') }}" class="btn-ghost">取消</a>
-      <button type="submit" class="btn-primary">保存</button>
+      <a href="{{ url_for('contracts.list') }}" class="btn ghost">取消</a>
+      <button type="submit" class="btn primary">保存合同</button>
     </div>
   </form>
 </div>
@@ -90,7 +89,6 @@
 {% block scripts %}
 <script>
 (function () {
-  var table = document.getElementById('plan-table');
   var body = document.getElementById('plan-body');
   var totalInput = document.querySelector('input[name="total_amount"]');
   var addBtn = document.getElementById('add-row');
@@ -108,18 +106,15 @@
     if (isNaN(ratio)) return;
     row.querySelector('.amount-input').value = (total * ratio / 100).toFixed(2);
   }
-  // 比例改动 → 自动算金额
   body.addEventListener('input', function (e) {
     if (e.target.classList.contains('ratio-input')) calcAmount(e.target.closest('.plan-row'));
   });
-  // 删除行
   body.addEventListener('click', function (e) {
     if (e.target.classList.contains('row-del')) {
       e.target.closest('.plan-row').remove();
       renumber();
     }
   });
-  // 新增行（克隆模板）
   addBtn.addEventListener('click', function () {
     var tr = document.createElement('tr');
     tr.className = 'plan-row';
@@ -127,7 +122,7 @@
       '<td class="seq"></td>' +
       '<td><input type="text" name="plan_ratio" class="ratio-input"></td>' +
       '<td><input type="text" name="plan_amount" class="amount-input"></td>' +
-      '<td><button type="button" class="btn-ghost btn-sm row-del">✕</button></td>';
+      '<td><button type="button" class="row-btn danger row-del">✕</button></td>';
     body.appendChild(tr);
     renumber();
   });

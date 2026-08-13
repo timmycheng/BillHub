@@ -1,10 +1,14 @@
 {% extends "base.html" %}
 {% block title %}登录{% endblock %}
-{% block body %}
+{% block shell %}
 <div class="login-wrap">
   <div class="login-card">
-    <h1 class="logo">BillHub</h1>
-    <p class="subtitle">合同 / 发票 / 审批 / 报销 一体化</p>
+    <div class="login-brand">
+      <div class="brand-mark">B</div>
+      <h1>BillHub</h1>
+    </div>
+    <p class="subtitle">合同付款与报销管理平台</p>
+    <div class="login-flash">{% include '_flash.html' %}</div>
     <form method="post">
       <label class="field">
         <span>用户名</span>
@@ -14,7 +18,7 @@
         <span>密码</span>
         <input type="password" name="password" autocomplete="current-password" required>
       </label>
-      <button type="submit" class="btn-primary btn-block">登录</button>
+      <button type="submit" class="btn primary block">登录</button>
     </form>
   </div>
 </div>

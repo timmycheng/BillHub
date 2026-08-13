@@ -1,4 +1,4 @@
-﻿"""BillHub 合同管理：整页表格 / 行内展开详情 / 增删改 / 付款计划 / 导入导出。
+﻿"""BillHub 合同管理：清单页 / 详情页 / 增删改 / 付款计划 / 导入导出。
 权限：普通用户只看自己的合同（owner_id），管理员看全部。导入导出限管理员。"""
 import os
 import tempfile
@@ -17,18 +17,22 @@ bp = Blueprint('contracts', __name__)
 CONTRACT_CATEGORIES = ['人力外包类', '采购类', '维保类', '软件开发类', '收据类']
 
 
-# ============ 列表数据组装（dashboard 与搜索共用）============
+# ============ 列表数据组装 ============
 def _owner_filter():
     return None if current_user.is_admin else int(current_user.id)
 
 
-def build_rows(owner, q=''):
+def build_rows(owner, q='', category=''):
     """返回 [{c, s(stats), pct, owner_name}]，供表格行渲染。"""
     contracts = db.list_contracts(owner_id=owner)
     if q:
         ql = q.lower()
         contracts = [c for c in contracts
-                     if q in (c['contract_no'] or '') or ql in (c['contract_name'] or '').lower()]
+                     if q in (c['contract_no'] or '')
+                     or ql in (c['contract_name'] or '').lower()
+                     or ql in (c['customer_name'] or '').lower()]
+    if category:
+        contracts = [c for c in contracts if (c['category'] or '') == category]
     users = {u['id']: u for u in db.list_users()}
     rows = []
     for c in contracts:
@@ -47,17 +51,19 @@ def _owner_display(owner_id):
     return (u['display_name'] if u else None) or current_user.display_name
 
 
-@bp.route('/contracts/rows')
+# ============ 合同清单页 ============
+@bp.route('/contracts')
 @login_required
-def rows():
-    """搜索时 HTMX 局部刷新表格体。"""
+def list():
     q = request.args.get('q', '').strip()
-    return render_template('_contract_rows.html',
-                           rows=build_rows(_owner_filter(), q), q=q)
+    category = request.args.get('category', '').strip()
+    rows = build_rows(_owner_filter(), q, category)
+    return render_template('contracts.html', rows=rows, q=q, category=category,
+                           categories=CONTRACT_CATEGORIES)
 
 
-# ============ 行内展开详情（HTMX 局部）============
-@bp.route('/contracts/<int:cid>/detail')
+# ============ 合同详情页 ============
+@bp.route('/contracts/<int:cid>')
 @login_required
 def detail(cid):
     c = db.get_contract(cid)
@@ -70,9 +76,11 @@ def detail(cid):
     # 经办人=合同归属用户（owner_id），无则回退 contract_manager 文本
     owner = db.get_user(c['owner_id']) if c.get('owner_id') else None
     owner_name = (owner['display_name'] if owner else None) or c.get('contract_manager') or ''
-    return render_template('_contract_detail.html', c=c, stats=stats,
+    pct = int(round(stats['paid'] / stats['total'] * 100)) if stats['total'] else 0
+    preview = request.args.get('preview', type=int)
+    return render_template('contract_detail.html', c=c, stats=stats, pct=min(pct, 100),
                            stages=stages, surplus=surplus, owner_name=owner_name,
-                           has_plan=bool(plan), payments=payments)
+                           has_plan=bool(plan), payments=payments, preview=preview)
 
 
 # ============ 表单解析 ============
@@ -151,7 +159,7 @@ def new():
             return _render_form(None, request.form)
         db.save_payment_plan(cid, _parse_plan_rows(request.form))
         flash(f'已新增合同：{data["contract_name"]}', 'success')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('contracts.detail', cid=cid))
     return _render_form(None, None)
 
 
@@ -178,7 +186,7 @@ def edit(cid):
         db.update_contract(cid, owner_id=owner_id, **data)
         db.save_payment_plan(cid, _parse_plan_rows(request.form))
         flash('合同已更新', 'success')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('contracts.detail', cid=cid))
     return _render_form(c, None)
 
 
@@ -192,7 +200,7 @@ def delete(cid):
     name = c['contract_name']
     db.delete_contract(cid)
     flash(f'已删除合同：{name}', 'success')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('contracts.list'))
 
 
 # ============ 导出（管理员）============
@@ -206,7 +214,7 @@ def export():
     except Exception as e:
         os.unlink(tmp.name)
         flash(f'导出失败：{e}', 'danger')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('contracts.list'))
     return send_file(tmp.name, as_attachment=True, download_name='合同清单.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
@@ -218,7 +226,7 @@ def import_file():
     f = request.files.get('file')
     if not f or not f.filename:
         flash('请选择要导入的 xlsx 文件', 'warning')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('contracts.list'))
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
     f.save(tmp.name)
     tmp.close()
@@ -227,7 +235,7 @@ def import_file():
     except Exception as e:
         os.unlink(tmp.name)
         flash(f'导入失败：{e}', 'danger')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('contracts.list'))
     os.unlink(tmp.name)
     msg = (f'新增 {result["added"]} 条，跳过 {result["skipped"]} 条（编号重复），'
            f'失败 {result["failed"]} 条')
@@ -235,7 +243,7 @@ def import_file():
         detail_str = '; '.join(f'第{e["row"]}行：{e["reason"]}' for e in result['errors'][:8])
         msg += '。明细：' + detail_str
     flash(msg, 'success' if result['added'] else 'warning')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('contracts.list'))
 
 
 # ============ 表单渲染辅助 ============

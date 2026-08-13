@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ c.contract_name }}{% endblock %}
+{% block crumb %}<span>业务管理</span><span class="sep">/</span><a href="{{ url_for('contracts.list') }}">合同管理</a><span class="sep">/</span><strong>合同详情</strong>{% endblock %}
+{% block body %}
+<div class="page-head">
+  <div>
+    <button class="back-btn" onclick="location.href='{{ url_for('contracts.list') }}'">← 合同列表</button>
+    <h1>{{ c.contract_name }}</h1>
+    <p>{{ c.contract_no or ('#' ~ c.id) }} · {{ c.customer_name or '未填写签订单位' }}</p>
+  </div>
+  <div class="head-actions">
+    <a href="{{ url_for('contracts.edit', cid=c.id) }}" class="btn ghost">编辑合同</a>
+    <button type="button" class="btn primary" onclick="openReimburse({{ c.id }})">＋ 填报报销</button>
+  </div>
+</div>
+
+<div class="detail-top">
+  <div class="panel">
+    <div class="detail-title-row">
+      <div>
+        {% if c.category %}<span class="tag blue">{{ c.category }}</span>{% endif %}
+        <span class="muted">创建于 {{ c.created_at }}</span>
+      </div>
+      <form method="post" action="{{ url_for('contracts.delete', cid=c.id) }}"
+            onsubmit="return confirm('确定删除合同「{{ c.contract_name }}」及其所有支付记录？')">
+        <button type="submit" class="btn danger small">删除合同</button>
+      </form>
+    </div>
+    <div class="detail-grid">
+      <div><label>合同编号</label><strong>{{ c.contract_no or '—' }}</strong></div>
+      <div><label>经办人</label><strong>{{ owner_name or '—' }}</strong></div>
+      <div><label>签订单位</label><strong>{{ c.customer_name or '—' }}</strong></div>
+      <div><label>签订日期</label><strong>{{ c.sign_date or '—' }}</strong></div>
+      <div><label>收款单位</label><strong>{{ c.payee or '—' }}</strong></div>
+      <div><label>开户银行</label><strong>{{ c.bank_name or '—' }}</strong></div>
+      <div class="wide"><label>银行账号</label><strong>{{ c.bank_account or '—' }}</strong></div>
+      <div class="wide"><label>备注</label><strong>{{ c.remark or '—' }}</strong></div>
+    </div>
+  </div>
+
+  <div class="panel progress-card">
+    <div class="progress-head"><span>合同付款执行</span><strong>{{ pct }}%</strong></div>
+    <div class="progress"><div class="{{ 'done' if pct >= 100 }}" style="width:{{ pct }}%"></div></div>
+    <div class="money-list">
+      <div><span>合同总额</span><strong>¥{{ stats.total|money }}</strong></div>
+      <div><span>已付款</span><strong class="green-text">¥{{ stats.paid|money }}</strong></div>
+      <div><span>待付款</span><strong class="orange-text">¥{{ stats.remaining|money }}</strong></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <div><h3>付款计划</h3><span class="muted">{{ stages|length }} 个付款节点</span></div>
+  </div>
+  {% if has_plan and stages %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>期次</th><th class="r">比例</th><th class="r">计划金额</th>
+        <th class="r">已支付</th><th class="r">待支付</th><th>状态</th>
+      </tr></thead>
+      <tbody>
+      {% for st in stages %}
+        <tr>
+          <td>第{{ st.seq }}期{% if st.condition %} · {{ st.condition }}{% endif %}</td>
+          <td class="r">{{ '%g'|format(st.ratio * 100) if st.ratio is not none else '—' }}{% if st.ratio is not none %}%{% endif %}</td>
+          <td class="r">¥{{ st.amount|money }}</td>
+          <td class="r">¥{{ st.paid|money }}</td>
+          <td class="r">¥{{ st.remaining|money }}</td>
+          <td>
+            {% if st.remaining <= 0 %}<span class="tag green">已完成</span>
+            {% elif st.paid > 0 %}<span class="tag blue">部分支付</span>
+            {% else %}<span class="tag orange">待付款</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if surplus > 0 %}<p class="warn">⚠️ 实际支付超出计划总额 ¥{{ surplus|money }}</p>{% endif %}
+  {% else %}<p class="muted pad-sm">未设置付款计划，可在「编辑合同」中维护</p>{% endif %}
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <div><h3>报销记录</h3><span class="muted">{{ payments|length }} 条</span></div>
+  </div>
+  {% if payments %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>报销日期</th><th>开票日期</th><th>阶段</th><th class="r">金额</th>
+        <th>发票号</th><th>备注</th><th>操作</th>
+      </tr></thead>
+      <tbody>
+      {% for rec in payments %}
+        <tr>
+          <td>{{ rec.pay_date }}</td>
+          <td>{{ rec.invoice_date or '—' }}</td>
+          <td>{{ rec.stage or '—' }}</td>
+          <td class="r">¥{{ rec.amount|money }}</td>
+          <td>{{ rec.invoice_no or '—' }}</td>
+          <td class="cell-remark" title="{{ rec.remark }}">{{ rec.remark or '—' }}</td>
+          <td class="cell-actions">
+            <button type="button" class="row-btn" onclick="openPreview({{ rec.id }})">预览</button>
+            {% if rec.invoice_file %}
+            <a href="{{ url_for('payments.download_invoice', pid=rec.id) }}" class="row-btn">票据</a>
+            {% endif %}
+            {% if rec.report_file %}
+            <a href="{{ url_for('payments.download_report', pid=rec.id) }}" class="row-btn">Excel</a>
+            {% endif %}
+            <form method="post" action="{{ url_for('payments.delete', pid=rec.id) }}"
+                  onsubmit="return confirm('确定删除这条支付记录？\n（删除后合同已付/剩余金额会重新计算）')"
+                  style="display:inline">
+              <button type="submit" class="row-btn danger">删除</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="muted pad-sm">暂无报销记录，点击右上角「＋ 填报报销」开始</p>{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if preview %}
+document.addEventListener('DOMContentLoaded', function () { openPreview({{ preview }}); });
+{% endif %}
+</script>
+{% endblock %}
