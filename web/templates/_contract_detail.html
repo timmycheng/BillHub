@@ -4,8 +4,8 @@
     <div class="detail-info">
       <h4>📄 合同信息</h4>
       <dl class="info-grid">
-        <dt>客户/甲方</dt><dd>{{ c.customer_name or '—' }}</dd>
-        <dt>经办人</dt><dd>{{ c.contract_manager or '—' }}</dd>
+        <dt>签订单位</dt><dd>{{ c.customer_name or '—' }}</dd>
+        <dt>经办人</dt><dd>{{ owner_name or '—' }}</dd>
         <dt>分类</dt><dd>{{ c.category or '—' }}</dd>
         <dt>收款单位</dt><dd>{{ c.payee or '—' }}</dd>
         <dt>开户银行</dt><dd>{{ (c.bank_name or '—') ~ ' ' ~ (c.bank_account or '') }}</dd>
@@ -32,12 +32,11 @@
       <h4>📅 付款计划</h4>
       {% if has_plan and stages %}
       <table class="mini-table">
-        <thead><tr><th>期</th><th>条件</th><th>比例</th><th>计划</th><th>已付</th><th>待付</th></tr></thead>
+        <thead><tr><th>期</th><th>比例</th><th>计划</th><th>已付</th><th>待付</th></tr></thead>
         <tbody>
         {% for st in stages %}
           <tr>
             <td class="c">{{ st.seq }}</td>
-            <td>{{ st.condition or '—' }}</td>
             <td class="c">{{ '%g'|format(st.ratio * 100) if st.ratio is not none else '—' }}%</td>
             <td class="r">¥{{ st.amount|money }}</td>
             <td class="r">¥{{ st.paid|money }}</td>

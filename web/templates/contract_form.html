@@ -16,10 +16,8 @@
           <input type="text" name="contract_no" value="{{ values.contract_no }}"></label>
         <label class="field"><span>合同名称 *</span>
           <input type="text" name="contract_name" value="{{ values.contract_name }}" required></label>
-        <label class="field"><span>客户/甲方</span>
+        <label class="field"><span>签订单位</span>
           <input type="text" name="customer_name" value="{{ values.customer_name }}"></label>
-        <label class="field"><span>经办人</span>
-          <input type="text" name="contract_manager" value="{{ values.contract_manager }}"></label>
         <label class="field"><span>分类</span>
           <input type="text" name="category" list="cat-list" value="{{ values.category }}">
           <datalist id="cat-list">
@@ -44,12 +42,11 @@
     <fieldset class="form-section">
       <legend>📅 付款计划（比例列修改时按合同总额自动算金额）</legend>
       <table class="plan-edit" id="plan-table">
-        <thead><tr><th>期</th><th>支付条件</th><th>比例(%)</th><th>金额(元)</th><th></th></tr></thead>
+        <thead><tr><th>期</th><th>比例(%)</th><th>金额(元)</th><th></th></tr></thead>
         <tbody id="plan-body">
         {% for r in plan_rows %}
           <tr class="plan-row">
             <td class="seq">{{ loop.index }}</td>
-            <td><input type="text" name="plan_condition" value="{{ r.condition or '' }}"></td>
             <td><input type="text" name="plan_ratio" class="ratio-input"
                        value="{{ '%g'|format(r.ratio*100) if r.ratio is not none else '' }}"></td>
             <td><input type="text" name="plan_amount" class="amount-input"
@@ -108,7 +105,6 @@
     tr.className = 'plan-row';
     tr.innerHTML =
       '<td class="seq"></td>' +
-      '<td><input type="text" name="plan_condition"></td>' +
       '<td><input type="text" name="plan_ratio" class="ratio-input"></td>' +
       '<td><input type="text" name="plan_amount" class="amount-input"></td>' +
       '<td><button type="button" class="btn-ghost btn-sm row-del">✕</button></td>';

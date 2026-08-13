@@ -31,9 +31,7 @@
         {% for p in plan %}
         <option value="第{{ p.seq }}期"
                 {% if p.seq in paid_stages %}disabled{% endif %}
-                {% if p.seq == default_seq %}selected{% endif %}>
-          第{{ p.seq }}期{% if p.condition %}（{{ p.condition }}）{% endif %}
-        </option>
+                {% if p.seq == default_seq %}selected{% endif %}>第{{ p.seq }}期</option>
         {% endfor %}
       </select>
       {% else %}

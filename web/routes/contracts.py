@@ -57,8 +57,11 @@ def detail(cid):
     stages, surplus = db.get_plan_status(cid)
     plan = db.list_payment_plan(cid)
     payments = db.list_payments(cid)
+    # 经办人=合同归属用户（owner_id），无则回退 contract_manager 文本
+    owner = db.get_user(c['owner_id']) if c.get('owner_id') else None
+    owner_name = (owner['display_name'] if owner else None) or c.get('contract_manager') or ''
     return render_template('_contract_detail.html', c=c, stats=stats,
-                           stages=stages, surplus=surplus,
+                           stages=stages, surplus=surplus, owner_name=owner_name,
                            has_plan=bool(plan), payments=payments)
 
 
@@ -125,6 +128,8 @@ def new():
         if err:
             flash(err, 'danger')
             return _render_form(None, request.form)
+        # 经办人=当前登录用户（表单不再提供该字段）
+        data['contract_manager'] = current_user.display_name
         cid = db.add_contract(owner_id=int(current_user.id), **data)
         if cid is None:
             flash('合同编号已存在', 'danger')
@@ -147,6 +152,9 @@ def edit(cid):
         if err:
             flash(err, 'danger')
             return _render_form(c, request.form)
+        # 编辑时不改经办人（表单无此字段，保留原值）
+        if not data['contract_manager']:
+            data['contract_manager'] = c['contract_manager']
         db.update_contract(cid, owner_id=c['owner_id'], **data)
         db.save_payment_plan(cid, _parse_plan_rows(request.form))
         flash('合同已更新', 'success')

@@ -11,14 +11,14 @@ from openpyxl.utils import get_column_letter
 import db
 
 # 导出表头（导入时按此表头名匹配列）
-EXPORT_HEADERS = ['合同编号', '合同名称', '客户/甲方', '经办人', '分类', '收款单位', '开户银行',
+EXPORT_HEADERS = ['合同编号', '合同名称', '签订单位', '经办人', '分类', '收款单位', '开户银行',
                   '银行账号', '合同总金额', '签订日期', '备注', '已付金额', '剩余金额']
 
 # 导入表头 -> db 字段（含别名容错；已付/剩余为系统计算值，导入时忽略）
 HEADER_MAP = {
     '合同编号': 'contract_no',
     '合同名称': 'contract_name',
-    '客户/甲方': 'customer_name', '客户': 'customer_name', '甲方': 'customer_name',
+    '签订单位': 'customer_name', '客户/甲方': 'customer_name', '客户': 'customer_name', '甲方': 'customer_name',
     '经办人': 'contract_manager', '负责人': 'contract_manager', '联系人': 'contract_manager',
     '分类': 'category', '类型': 'category',
     '收款单位': 'payee', '收款方': 'payee',
