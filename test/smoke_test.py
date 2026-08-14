@@ -355,6 +355,12 @@ finally:
 r = c.get('/contracts/999')
 check('GET missing contract 404', r.status_code == 404)
 
+# Dockerfile CMD 回归检查：waitress-serve 不支持 create_app() 写法
+with open(os.path.join(BASE, 'Dockerfile.web'), encoding='utf-8') as fh:
+    df = fh.read()
+check('Dockerfile CMD 使用 --call 工厂形式', '--call", "web.app:create_app' in df
+      and 'create_app()' not in df)
+
 shutil.rmtree(TMP, ignore_errors=True)
 print()
 if fails:

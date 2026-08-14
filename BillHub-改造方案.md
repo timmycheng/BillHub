@@ -359,7 +359,7 @@ ENV BILLHUB_DB=/app/data/bill.db
 ENV BILLHUB_UPLOAD_DIR=/app/uploads
 EXPOSE 8000
 
-CMD ["waitress-serve", "--host=0.0.0.0", "--port=8000", "web.app:create_app()"]
+CMD ["waitress-serve", "--host=0.0.0.0", "--port=8000", "--call", "web.app:create_app"]
 ```
 
 ### 7.2 `requirements-web.txt`

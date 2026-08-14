@@ -33,5 +33,5 @@ ENV BILLHUB_DB=/app/data/bill.db
 ENV BILLHUB_UPLOAD_DIR=/app/uploads
 EXPOSE 8000
 
-# 生产 WSGI：waitress 多线程
-CMD ["waitress-serve", "--host=0.0.0.0", "--port=8000", "web.app:create_app()"]
+# 生产 WSGI：waitress 多线程（--call 支持 Flask 应用工厂）
+CMD ["waitress-serve", "--host=0.0.0.0", "--port=8000", "--call", "web.app:create_app"]
