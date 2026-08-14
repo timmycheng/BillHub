@@ -6,7 +6,7 @@ import tempfile
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
 
-from ocr import InvoiceOCR
+from ocr import InvoiceOCR, ContractOCR
 
 bp = Blueprint('ocr_api', __name__)
 
@@ -14,6 +14,7 @@ ALLOWED_EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.webp', '.pdf'}
 
 # onnxruntime InferenceSession 支持多线程并发 Run，单例复用安全
 _OCR = None
+_CONTRACT_OCR = None
 
 
 def _get_ocr():
@@ -21,6 +22,13 @@ def _get_ocr():
     if _OCR is None:
         _OCR = InvoiceOCR()
     return _OCR
+
+
+def _get_contract_ocr():
+    global _CONTRACT_OCR
+    if _CONTRACT_OCR is None:
+        _CONTRACT_OCR = ContractOCR(_get_ocr())  # 共用底层 RapidOCR
+    return _CONTRACT_OCR
 
 
 @bp.route('/api/ocr', methods=['POST'])
@@ -49,4 +57,32 @@ def ocr():
     if not data or not any(data.values()):
         return jsonify({'ok': False,
                         'error': '未能识别出有效信息，请手动填写或换清晰图片'}), 422
+    return jsonify({'ok': True, **data})
+
+
+@bp.route('/api/ocr/contract', methods=['POST'])
+@login_required
+def contract_ocr():
+    """上传合同文件（doc/docx/pdf/图片）→ 识别合同信息与付款计划 → JSON。"""
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'ok': False, 'error': '未收到文件'}), 400
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in {'.doc', '.docx', '.pdf', '.png', '.jpg', '.jpeg', '.bmp', '.webp'}:
+        return jsonify({'ok': False, 'error': '不支持的文件类型，请上传 doc/docx/pdf/图片'}), 400
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    f.save(tmp.name)
+    tmp.close()
+    try:
+        data = _get_contract_ocr().extract(tmp.name)
+    except ValueError as e:
+        return jsonify({'ok': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'合同识别失败：{e}'}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
     return jsonify({'ok': True, **data})
