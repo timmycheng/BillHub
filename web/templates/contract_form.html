@@ -12,6 +12,17 @@
 
 <div class="panel form-panel">
   <form method="post">
+    <div class="ocr-box" id="contract-ocr">
+      <span class="ocr-icon">📄</span>
+      <div class="ocr-text">
+        <strong>从合同文件识别</strong>
+        <p class="muted small">上传合同的电子稿（doc/docx）或扫描件（PDF/图片），自动回填签订单位、金额、收款信息、生效/结束时间与付款计划，请人工核对。</p>
+      </div>
+      <input type="file" id="contract-ocr-file" accept=".doc,.docx,.pdf,.png,.jpg,.jpeg,.bmp,.webp" style="display:none">
+      <button type="button" class="btn ghost small" id="contract-ocr-btn">选择合同文件</button>
+      <span class="ocr-status muted small" id="contract-ocr-status"></span>
+    </div>
+
     <div class="form-section-title">基本信息</div>
     <div class="form-grid">
       <label class="field"><span>合同编号（可选）</span>
@@ -102,6 +113,19 @@
       row.querySelector('.seq').textContent = i + 1;
     });
   }
+  function addRow(ratio, amount) {
+    var tr = document.createElement('tr');
+    tr.className = 'plan-row';
+    tr.innerHTML =
+      '<td class="seq"></td>' +
+      '<td><input type="text" name="plan_ratio" class="ratio-input"></td>' +
+      '<td><input type="text" name="plan_amount" class="amount-input"></td>' +
+      '<td><button type="button" class="row-btn danger row-del">✕</button></td>';
+    tr.querySelector('.ratio-input').value = ratio != null ? String(ratio) : '';
+    tr.querySelector('.amount-input').value = amount != null ? String(amount) : '';
+    body.appendChild(tr);
+    renumber();
+  }
   function calcAmount(row) {
     var ratioTxt = row.querySelector('.ratio-input').value.replace('%', '').trim();
     var total = parseFloat(totalInput.value.replace(',', '')) || 0;
@@ -119,17 +143,46 @@
       renumber();
     }
   });
-  addBtn.addEventListener('click', function () {
-    var tr = document.createElement('tr');
-    tr.className = 'plan-row';
-    tr.innerHTML =
-      '<td class="seq"></td>' +
-      '<td><input type="text" name="plan_ratio" class="ratio-input"></td>' +
-      '<td><input type="text" name="plan_amount" class="amount-input"></td>' +
-      '<td><button type="button" class="row-btn danger row-del">✕</button></td>';
-    body.appendChild(tr);
-    renumber();
-  });
+  addBtn.addEventListener('click', function () { addRow('', ''); });
+
+  // ---- 合同文件 OCR ----
+  var ocrBtn = document.getElementById('contract-ocr-btn');
+  var ocrFile = document.getElementById('contract-ocr-file');
+  var ocrStatus = document.getElementById('contract-ocr-status');
+  var fieldMap = {
+    customer_name: 'customer_name', total_amount: 'total_amount', payee: 'payee',
+    bank_name: 'bank_name', bank_account: 'bank_account',
+    start_date: 'start_date', end_date: 'end_date'
+  };
+  if (ocrBtn) {
+    ocrBtn.addEventListener('click', function () { ocrFile.click(); });
+    ocrFile.addEventListener('change', function () {
+      if (!ocrFile.files.length) return;
+      var file = ocrFile.files[0];
+      ocrStatus.textContent = '识别中：' + file.name + ' …';
+      var fd = new FormData(); fd.append('file', file);
+      fetch('{{ url_for("ocr_api.contract_ocr") }}', { method: 'POST', body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) { ocrStatus.textContent = '⚠️ ' + d.error; return; }
+          Object.keys(fieldMap).forEach(function (k) {
+            var el = document.querySelector('[name="' + fieldMap[k] + '"]');
+            if (el && d[k]) el.value = d[k];
+          });
+          if (d.plan && d.plan.length) {
+            body.innerHTML = '';
+            d.plan.forEach(function (p) {
+              var ratioPct = (p.ratio != null && p.ratio !== '') ? (p.ratio * 100) : '';
+              addRow(ratioPct, p.amount);
+            });
+          }
+          var hit = Object.keys(fieldMap).filter(function (k) { return d[k]; }).length;
+          ocrStatus.textContent = '✅ 识别完成，回填 ' + hit + ' 个字段' +
+            (d.plan && d.plan.length ? ('、' + d.plan.length + ' 期付款计划') : '') + '，请核对！';
+        })
+        .catch(function () { ocrStatus.textContent = '❌ 识别请求失败'; });
+    });
+  }
 })();
 </script>
 {% endblock %}
