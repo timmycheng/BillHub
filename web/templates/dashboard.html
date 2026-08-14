@@ -26,13 +26,63 @@
     <div class="stat-top"><span>已付款</span><div class="stat-icon green">✓</div></div>
     <div class="stat-num">¥{{ stats.paid|money }}</div>
     <div class="stat-foot">付款完成率
-      <strong>{{ '%d'|format(stats.paid / stats.total * 100) if stats.total else 0 }}%</strong>
+      <strong>{{ ((stats.paid / stats.total * 100)|int) if stats.total else 0 }}%</strong>
     </div>
   </div>
   <div class="stat-card">
     <div class="stat-top"><span>待付款</span><div class="stat-icon orange">◷</div></div>
     <div class="stat-num">¥{{ stats.remaining|money }}</div>
     <div class="stat-foot">剩余未付金额合计</div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>付款趋势</h3><span class="muted">近 6 个月（单位：元）</span></div>
+    </div>
+    {% if max_total > 0 %}
+    <div class="chart">
+      <div class="y-axis">
+        <span>{{ max_total|money }}</span>
+        <span>{{ (max_total/2)|money }}</span>
+        <span>0</span>
+      </div>
+      <div class="plot">
+        <div class="gridline g1"></div><div class="gridline g2"></div>
+        <div class="bars">
+          {% for m in months %}
+          <div class="bar-col">
+            <div class="bar-value">{{ m.total|money }}</div>
+            <div class="bar {{ 'hot' if loop.last }}" style="height:{{ m.pct }}%"></div>
+            <span>{{ m.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% else %}<p class="muted pad-sm">暂无付款数据</p>{% endif %}
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><div><h3>待办事项</h3></div></div>
+    <div class="todo-list">
+      <div class="todo">
+        <div class="todo-icon orange">◷</div>
+        <div><strong>{{ expiring }} 个合同即将到期</strong><p>生效中且 30 天内到结束时间</p></div>
+        <a class="arrow" href="{{ url_for('contracts.list', status='active') }}">→</a>
+      </div>
+      <div class="todo">
+        <div class="todo-icon blue">￥</div>
+        <div><strong>{{ reviewing }} 笔报销待打款</strong><p>状态为「审核中」</p></div>
+        <a class="arrow" href="{{ url_for('payments.page') }}">→</a>
+      </div>
+      <div class="todo">
+        <div class="todo-icon green">▣</div>
+        <div><strong>{{ pending_effective }} 个合同未生效</strong><p>尚未到生效时间</p></div>
+        <a class="arrow" href="{{ url_for('contracts.list', status='pending') }}">→</a>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -44,7 +94,7 @@
   <div class="table-wrap">
     <table>
       <thead><tr>
-        <th>合同名称</th><th>阶段</th><th class="r">金额</th><th>发票号</th><th>填报时间</th><th>操作</th>
+        <th>合同名称</th><th>阶段</th><th class="r">金额</th><th>发票号</th><th>状态</th><th>填报时间</th><th>操作</th>
       </tr></thead>
       <tbody>
       {% for rec in recent %}
@@ -53,11 +103,16 @@
           <td>{{ rec.stage or '—' }}</td>
           <td class="r">¥{{ rec.amount|money }}</td>
           <td>{{ rec.invoice_no or '—' }}</td>
+          <td>
+            {% if rec.status == '已打款' %}<span class="tag green">已打款</span>
+            {% elif rec.status == '审核中' %}<span class="tag blue">审核中</span>
+            {% else %}<span class="tag orange">已提交</span>{% endif %}
+          </td>
           <td class="muted">{{ rec.created_at }}</td>
           <td><button type="button" class="row-btn" onclick="openPreview({{ rec.id }})">预览</button></td>
         </tr>
       {% else %}
-        <tr><td colspan="6" class="empty-row">暂无报销记录</td></tr>
+        <tr><td colspan="7" class="empty-row">暂无报销记录</td></tr>
       {% endfor %}
       </tbody>
     </table>
