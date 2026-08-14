@@ -2,6 +2,7 @@
 与 xlsx 模板（合同支付审批表）同款排版，供右栏展示与浏览器打印。"""
 from flask import Blueprint, abort, render_template, request
 from flask_login import login_required
+from datetime import datetime
 
 import db
 from utils import build_record_preview, build_report_context
@@ -43,7 +44,7 @@ def draft():
                                ctx=None, stages=[], this_pay=[], pid=None, report_exists=False)
     ctx, stages, this_pay = build_report_context(
         c,
-        request.form.get('pay_date', '').strip(),
+        datetime.now().strftime('%Y-%m-%d'),
         request.form.get('invoice_date', '').strip(),
         amount,
         request.form.get('invoice_no', '').strip(),
