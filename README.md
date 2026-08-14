@@ -51,14 +51,27 @@ SQLite（默认 `bill.db`，WAL 模式），环境变量 `BILLHUB_DB` 指定路�
 
 ## CI/CD
 
-仅在发版时触发（推送 `v*` 标签，或手动 workflow_dispatch），见 `.github/workflows/build-release.yml`：
+### 一键发版（推荐）
 
-1. 修改 `pyproject.toml` 版本号，并在 `CHANGELOG.md` 写好对应版本的 `## [x.y.z]` 小节
-2. 提交到 `main` 后打标签推送：`git tag v<x.y.z> && git push origin v<x.y.z>`
-3. 自动构建 `billhub-web` 镜像并导出离线 tar（zstd 压缩），发布 GitHub Release（Release Notes 自动取 CHANGELOG 对应小节），附带部署包（docker-compose / .env.example / deploy.md）
-4. 镜像自动按 25MB 分卷通过邮件发送到收件人（内网环境无法上 GitHub 时可直接收邮件导入）
+GitHub 仓库页 → Actions → Build & Release → **Run workflow**：
 
-邮件分发需在仓库 Secrets 配置（保证私密性，仓库内无明文收件信息）：
+1. 填版本号（如 `2.0.2`；留空则沿用 pyproject.toml 当前版本）
+2. 可选：粘贴本次 CHANGELOG 小节内容（留空则自动从最近提交记录生成）
+3. 点击 Run workflow
+
+流水线自动完成：修改 `pyproject.toml` 版本 → 更新 `CHANGELOG.md` → 提交并推送 main → 构建 Docker 镜像 → 发布 GitHub Release（自动创建 `vX.Y.Z` 标签，Release Notes 取 CHANGELOG 对应小节）→ 邮件分发。
+
+### 手动发版（备用）
+
+本地改好 `pyproject.toml` 版本号 + `CHANGELOG.md` 小节后提交，再打标签推送：
+
+```bash
+git tag v2.0.2 && git push origin v2.0.2
+```
+
+### 邮件 Secrets（保证私密性，仓库内无明文收件信息）
 
 - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` —— 发件邮箱及授权码
 - `MAIL_TO` —— 收件人地址
+
+未配置时邮件分发自动跳过并在日志中提示，不影响发版。
