@@ -11,6 +11,8 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-08-14
+
 ### 变更
 
 - 一键发版：Actions → Run workflow 填版本号即可发版——自动 bump 版本、将 [Unreleased] 小节转正为版本小节并提交推送、构建镜像、发布 Release（Notes 取 CHANGELOG）、邮件分发；`v*` 标签推送保留为手动兜底
