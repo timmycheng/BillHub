@@ -1,9 +1,10 @@
 # BillHub 双产物构建与发布：桌面 exe（Windows）+ Web Docker 镜像（Linux，离线 tar）
+# 仅在发版（推送 v* 标签）时触发；普通 push 到 main 不再触发，避免每次提交都构建
 name: Build & Release
 
 on:
   push:
-    branches: [ main ]
+    tags: ['v*']
   workflow_dispatch:
 
 concurrency:
@@ -95,9 +96,21 @@ jobs:
         with:
           path: artifacts
 
-      - name: Read version
+      - name: Read version & extract release notes
         id: version
-        run: echo "ver=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")" >> "$GITHUB_OUTPUT"
+        run: |
+          python3 - <<'PY'
+          import os, re, tomllib, pathlib
+          ver = tomllib.load(open('pyproject.toml','rb'))['project']['version']
+          text = pathlib.Path('CHANGELOG.md').read_text(encoding='utf-8')
+          m = re.search(r'^##\s*\[' + re.escape(ver) + r'\][^\n]*\n(.*?)(?=\n^##\s*\[|\Z)',
+                        text, re.S | re.M)
+          notes = m.group(1).strip() if m else ''
+          pathlib.Path('release_notes.md').write_text(notes, encoding='utf-8')
+          print(f'ver={ver}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'ver={ver}\n')
+          PY
 
       - name: Publish GitHub Release
         shell: bash
@@ -119,7 +132,7 @@ jobs:
           fi
           gh release create "$TAG" "${ASSETS[@]}" \
             --title "BillHub ${VER}" \
-            --notes "桌面版（BillHub.exe）与 Web 版镜像（billhub-web-${VER}.tar.zst，离线 docker load）"
+            --notes-file release_notes.md
           echo "Released ${TAG}"
 
   # ============ Job 4：邮件分发（暂停中，稳定后启用）============
