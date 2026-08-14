@@ -159,6 +159,23 @@ def delete(pid):
     return redirect(url_for('contracts.detail', cid=rec['contract_id']))
 
 
+# ============ 报销状态流转 ============
+@bp.route('/payments/<int:pid>/status', methods=['POST'])
+@login_required
+def set_status(pid):
+    rec = db.get_payment(pid)
+    if not rec:
+        abort(404)
+    _get_accessible_contract(rec['contract_id'])
+    to = request.form.get('to', '').strip()
+    if to not in db.PAYMENT_STATUS_FLOW:
+        flash('未知的状态', 'danger')
+    else:
+        db.set_payment_status(pid, to)
+        flash(f'已更新报销状态：{to}', 'success')
+    return redirect(request.referrer or url_for('payments.page'))
+
+
 # ============ 文件下载 ============
 def _send_payment_file(pid, key, download_name):
     rec = db.get_payment(pid)
