@@ -6,6 +6,17 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 版本格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 并遵守 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.0.1] - 2026-08-14
+
+### 变更
+
+- **发版流程调整**：CI 仅在推送 `v*` 标签时触发（普通 push 到 main 不再构建）；Release Notes 自动抽取 CHANGELOG 中对应版本小节
+- **邮件分发恢复（Docker 镜像版）**：发版后将 `billhub-web` 镜像 zstd 压缩并按 25MB 分卷，经 SMTP 逐卷发送到收件邮箱；SMTP 配置与收件地址（MAIL_TO）全部置于 GitHub Secrets，仓库内不含任何明文收件信息；Secrets 未配置时自动跳过并给出提示
+
+### 移除
+
+- **桌面版正式下线**：删除 PyQt6 桌面应用（main.py）、PyInstaller 打包配置（BillHub.spec / build_exe.bat）及桌面依赖（requirements.txt）；pyproject 依赖去除 pyqt6 / pyinstaller；CI 停止 exe 打包，Release 仅发布 Web Docker 镜像与部署包
+
 ## [2.0.0] - 2026-08-13
 
 ### 新增
@@ -28,11 +39,6 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 - **完全 Web 化 + 全新现代化 UI**：重构为深色侧边栏 + 顶栏 + 卡片式布局（参考设计稿），导航分「工作台 / 业务管理 / 系统管理」；登录页、合同清单、合同详情、报销管理、用户管理全部改版；报销填报与审批表预览保留弹窗交互；版本号升至 2.0.0
 - 路由重构：`/contracts` 合同清单、`/contracts/<id>` 合同详情独立页面、`/payments` 报销管理页、`/` 工作台汇总
 - 报销日期不再由用户填写：固定为创建当天日期，界面统一展示「填报时间」（即记录创建时间 created_at）
-
-### 移除
-
-- **桌面版正式下线**：删除 PyQt6 桌面应用（main.py）、PyInstaller 打包配置（BillHub.spec / build_exe.bat）及桌面依赖（requirements.txt）；pyproject 依赖去除 pyqt6 / pyinstaller；CI 停止 exe 打包，仅构建 Web Docker 镜像
-- **CI/CD 调整**：发版改为仅 `v*` 标签触发（普通 push 不触发），Release Notes 自动取 CHANGELOG 对应版本小节；邮件分发恢复：Docker 镜像 zstd 压缩后按 25MB 分卷经 SMTP 逐卷发送，SMTP 配置与收件地址（MAIL_TO）全部置于 GitHub Secrets，仓库不含明文收件信息
 
 ## [1.2.2] - 2026-08-13
 
