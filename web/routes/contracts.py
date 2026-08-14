@@ -58,6 +58,9 @@ def _owner_display(owner_id):
     return (u['display_name'] if u else None) or current_user.display_name
 
 
+PER_PAGE = 15
+
+
 # ============ 合同清单页 ============
 @bp.route('/contracts')
 @login_required
@@ -65,9 +68,15 @@ def list():
     q = request.args.get('q', '').strip()
     category = request.args.get('category', '').strip()
     status = request.args.get('status', '').strip()
-    rows = build_rows(_owner_filter(), q, category, status)
+    page = max(1, request.args.get('page', 1, type=int))
+    all_rows = build_rows(_owner_filter(), q, category, status)
+    total = len(all_rows)
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    page = min(page, total_pages)
+    rows = all_rows[(page - 1) * PER_PAGE: page * PER_PAGE]
     return render_template('contracts.html', rows=rows, q=q, category=category,
-                           status=status, categories=CONTRACT_CATEGORIES)
+                           status=status, categories=CONTRACT_CATEGORIES,
+                           page=page, per_page=PER_PAGE, total=total, total_pages=total_pages)
 
 
 # ============ 合同详情页 ============
