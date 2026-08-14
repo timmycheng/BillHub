@@ -1,7 +1,7 @@
 # BillHub Web 版内网部署（离线环境）
 
 > 内网服务器无法访问公网，镜像通过 `docker load` 离线导入。
-> 桌面版 BillHub.exe 与 Web 版共用同一套数据逻辑；Web 版适合多人共享。
+> BillHub 自 2.0 起完全 Web 化（桌面版已下线），多人共享通过 Web 版实现。
 
 ## 前置条件
 
