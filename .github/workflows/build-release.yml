@@ -134,6 +134,7 @@ jobs:
           path: image
 
       - name: Split image into 25MB volumes
+        if: env.MAIL_TO != '' && env.SMTP_USER != ''
         run: |
           set -e
           mkdir -p email
@@ -143,6 +144,11 @@ jobs:
           ls -lh email/ | sed 1d
 
       - name: Email volumes to recipient
+        if: env.MAIL_TO != '' && env.SMTP_USER != ''
         env:
           MAIL_SUBJECT: BillHub v${{ steps.version.outputs.ver }} 镜像分卷
         run: python scripts/send_email.py
+
+      - name: Email skipped (secrets not configured)
+        if: env.MAIL_TO == '' || env.SMTP_USER == ''
+        run: echo "::warning::邮件分发已跳过：请在仓库 Settings→Secrets and variables→Actions 配置 SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/MAIL_TO 后重跑本 workflow"
