@@ -22,9 +22,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ============ Job 0：发版准备（仅一键发版时运行）============
+  # ============ Job 0：发版准备（仅一键发版时执行步骤；标签推送时保持 success 以免级联跳过下游 job）============
   prep:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,12 +31,14 @@ jobs:
       ver: ${{ steps.commit.outputs.ver }}
     steps:
       - name: Checkout
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
       - name: Resolve & validate version
+        if: github.event_name == 'workflow_dispatch'
         run: |
           VER="${{ github.event.inputs.version }}"
           if [ -z "$VER" ]; then
@@ -50,6 +51,7 @@ jobs:
           echo "RELEASE_VERSION=$VER" >> "$GITHUB_ENV"
 
       - name: Bump version & convert [Unreleased] to version section
+        if: github.event_name == 'workflow_dispatch'
         env:
           RELEASE_NOTES: ${{ github.event.inputs.notes }}
         run: |
@@ -118,6 +120,7 @@ jobs:
           PY
 
       - name: Commit & push
+        if: github.event_name == 'workflow_dispatch'
         id: commit
         run: |
           git config user.name 'github-actions[bot]'
