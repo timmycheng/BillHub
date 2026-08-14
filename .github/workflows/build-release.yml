@@ -1,20 +1,101 @@
-# BillHub Web 版构建与发布：Docker 镜像（Linux，离线 tar）
-# 桌面版（PyQt6/exe）已于 2.0 正式下线，仅保留 Web 版
-# 仅在发版（推送 v* 标签）时触发；普通 push 到 main 不触发，避免每次提交都构建
+# BillHub 发版工作流（两种触发方式）
+# 1) 一键发版（推荐）：Actions 页面 → Run workflow → 填版本号（如 2.0.2）。
+#    自动完成：bump pyproject 版本 → 生成/插入 CHANGELOG 小节 → 提交推送 main
+#    → 构建镜像 → 发布 GitHub Release（自动创建 vX.Y.Z 标签，Notes 取 CHANGELOG）→ 邮件分发
+# 2) 手动发版（备用）：推送 v* 标签（此时需已自行改好 pyproject 版本与 CHANGELOG）
 name: Build & Release
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: '发版版本号（如 2.0.2）。留空则用 pyproject.toml 当前版本'
+        required: false
+      notes:
+        description: '本次 CHANGELOG 小节内容（可选，留空则从最近提交记录自动生成）'
+        required: false
 
 concurrency:
   group: build-release
   cancel-in-progress: true
 
 jobs:
+  # ============ Job 0：发版准备（仅一键发版时运行）============
+  prep:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      ver: ${{ steps.commit.outputs.ver }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve & validate version
+        run: |
+          VER="${{ github.event.inputs.version }}"
+          if [ -z "$VER" ]; then
+            VER=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          fi
+          echo "$VER" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::版本号格式错误：$VER（应为 x.y.z）"; exit 1; }
+          if git ls-remote --tags origin "refs/tags/v$VER" | grep -q .; then
+            echo "::error::标签 v$VER 已存在，请换一个版本号"; exit 1
+          fi
+          echo "RELEASE_VERSION=$VER" >> "$GITHUB_ENV"
+
+      - name: Bump version & update CHANGELOG
+        env:
+          RELEASE_NOTES: ${{ github.event.inputs.notes }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess, pathlib
+          ver = os.environ['RELEASE_VERSION']
+          notes = os.environ.get('RELEASE_NOTES', '').strip()
+          # 1. bump pyproject.toml 版本号
+          p = pathlib.Path('pyproject.toml')
+          c = p.read_text(encoding='utf-8')
+          m = re.search(r'(?m)(?<=^version = ")[^"]+(?=")', c)
+          if not m:
+              raise SystemExit('pyproject.toml 中未找到 version 字段')
+          p.write_text(c[:m.start()] + ver + c[m.end():], encoding='utf-8')
+          # 2. CHANGELOG 插入新版本小节（插入到第一个 ## [ 版本标题之前）
+          ch = pathlib.Path('CHANGELOG.md')
+          text = ch.read_text(encoding='utf-8')
+          date = subprocess.check_output(['date', '+%Y-%m-%d']).decode().strip()
+          header = f'## [{ver}] - {date}'
+          if not notes:
+              try:
+                  last = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
+                  log = subprocess.check_output(['git', 'log', f'{last}..HEAD', '--pretty=format:- %s']).decode(errors='ignore').strip()
+              except subprocess.CalledProcessError:
+                  log = subprocess.check_output(['git', 'log', '-10', '--pretty=format:- %s']).decode(errors='ignore').strip()
+              notes = '### 变更\n\n' + (log or '- （无提交说明）')
+          lines = text.split('\n')
+          idx = next((i for i, l in enumerate(lines) if l.startswith('## [')), len(lines))
+          lines[idx:idx] = [header, '', notes, '']
+          ch.write_text('\n'.join(lines), encoding='utf-8')
+          print(f'版本已升到 {ver}，CHANGELOG 已更新')
+          PY
+
+      - name: Commit & push
+        id: commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pyproject.toml CHANGELOG.md
+          git commit -m "chore: release v$RELEASE_VERSION" || echo '无可提交变更'
+          git push origin main
+          echo "ver=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+
   # ============ Job 1：Web Docker 镜像（Linux，导出离线 tar）============
   build-docker:
+    needs: [ prep ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
