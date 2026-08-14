@@ -26,7 +26,7 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 
 - 修复报销状态时间轴「标记为」按钮未携带目标状态、导致状态流转失败的问题
 - 修复最旧库结构（contracts 无 contract_manager）迁移重建失败的问题：重建 INSERT 不再引用旧表不存在的列，旧库可正常迁移补齐新列
-- 修复发版流水线两个问题：一键发版（workflow_dispatch）后续 job 未取 prep 推送后的最新 main、误用发版前旧版本号构建发布（checkout 显式指定 ref: main）；标签推送时 prep 被跳过导致下游 job 级联跳过、`v*` 标签无法触发发版（prep 改为始终运行、步骤内判断）
+- 修复发版流水线三个问题：一键发版（workflow_dispatch）后续 job 未取 prep 推送后的最新 main、误用发版前旧版本号构建发布（checkout 显式指定 ref: main）；标签推送时 prep 被跳过导致下游 job 级联跳过、`v*` 标签无法触发发版（prep 改为始终运行、步骤内判断）；发布 job 对已存在 Release 先删后建会挪动既有标签（改为已存在则跳过，不删除）
 
 ## [2.0.1] - 2026-08-14
 
