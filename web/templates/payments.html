@@ -14,7 +14,7 @@
     <table>
       <thead><tr>
         <th>报销单号</th><th>合同</th><th>阶段</th><th class="r">金额</th>
-        <th>发票号</th><th>填报时间</th><th>相关文件</th><th>操作</th>
+        <th>发票号</th><th>填报时间</th><th>相关文件</th><th>状态</th><th>操作</th>
       </tr></thead>
       <tbody>
       {% for rec in records %}
@@ -32,6 +32,11 @@
             {% endfor %}
             {% else %}—{% endif %}
           </td>
+          <td>
+            {% if rec.status == '已打款' %}<span class="tag green">已打款</span>
+            {% elif rec.status == '审核中' %}<span class="tag blue">审核中</span>
+            {% else %}<span class="tag orange">已提交</span>{% endif %}
+          </td>
           <td class="cell-actions">
             <button type="button" class="row-btn" onclick="openPreview({{ rec.id }})">预览</button>
             {% if rec.invoice_file %}
@@ -46,8 +51,9 @@
             </form>
           </td>
         </tr>
+        <tr class="tl-row"><td colspan="9">{% include '_payment_timeline.html' %}</td></tr>
       {% else %}
-        <tr><td colspan="8" class="empty-row">暂无报销记录，请到合同详情页点击「＋ 填报报销」</td></tr>
+        <tr><td colspan="9" class="empty-row">暂无报销记录，请到合同详情页点击「＋ 填报报销」</td></tr>
       {% endfor %}
       </tbody>
     </table>

@@ -47,7 +47,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS payment_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         contract_id INTEGER NOT NULL,
-        pay_date TEXT NOT NULL,                -- 报销日期
+        pay_date TEXT NOT NULL,                -- 报销日期（= 创建日期）
         invoice_date TEXT,                     -- 发票开票日期（OCR 识别，可空）
         stage TEXT,                            -- 阶段/期数
         amount REAL NOT NULL,                  -- 本次支付金额
@@ -55,6 +55,10 @@ def init_db():
         remark TEXT,                           -- 备注
         invoice_file TEXT,                     -- 本次上传的发票/收据文件路径
         report_file TEXT,                      -- 本次生成的审批表 Excel 路径
+        status TEXT DEFAULT '已提交',          -- 报销状态：已提交/审核中/已打款
+        submitted_at TEXT,                     -- 已提交时间
+        reviewed_at TEXT,                      -- 审核中时间
+        paid_at TEXT,                          -- 已打款时间
         created_at TEXT DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
     );
@@ -110,13 +114,23 @@ _NEW_COLUMNS = {  # 增量迁移：列名 -> 定义
 
 
 def _migrate_payments():
-    """payment_records 增量迁移：补 invoice_file / report_file 列"""
+    """payment_records 增量迁移：补 invoice_file / report_file / 报销状态等列。"""
     conn = sqlite3.connect(DB_PATH)
     try:
         cols = {r[1] for r in conn.execute('PRAGMA table_info(payment_records)').fetchall()}
         for name in ('invoice_date', 'invoice_file', 'report_file'):
             if name not in cols:
                 conn.execute(f'ALTER TABLE payment_records ADD COLUMN {name} TEXT')
+        # 报销状态字段（已提交/审核中/已打款）
+        for name, ddl in (('status', "TEXT DEFAULT '已提交'"),
+                          ('submitted_at', 'TEXT'), ('reviewed_at', 'TEXT'),
+                          ('paid_at', 'TEXT')):
+            if name not in cols:
+                conn.execute(f'ALTER TABLE payment_records ADD COLUMN {name} {ddl}')
+        # 回填历史记录：状态默认已提交，提交时间=创建时间
+        conn.execute("UPDATE payment_records SET status='已提交' WHERE status IS NULL OR status=''")
+        conn.execute("UPDATE payment_records SET submitted_at=created_at "
+                     "WHERE (submitted_at IS NULL OR submitted_at='') AND created_at IS NOT NULL")
         conn.commit()
     finally:
         conn.close()
@@ -274,6 +288,35 @@ def list_invoice_nos():
     ).fetchall()
     conn.close()
     return [r['invoice_no'] for r in rows]
+
+
+# 报销状态流转顺序与对应时间戳字段
+PAYMENT_STATUS_FLOW = ['已提交', '审核中', '已打款']
+PAYMENT_STATUS_TS = {'已提交': 'submitted_at', '审核中': 'reviewed_at', '已打款': 'paid_at'}
+
+
+def set_payment_status(pid, status):
+    """推进报销状态并记录对应时间戳。仅允许向后流转到 status（顺序见 PAYMENT_STATUS_FLOW）。"""
+    if status not in PAYMENT_STATUS_FLOW:
+        raise ValueError(f'非法状态：{status}')
+    ts_col = PAYMENT_STATUS_TS[status]
+    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    conn = get_conn()
+    cur = conn.execute('SELECT status FROM payment_records WHERE id=?', (pid,)).fetchone()
+    if not cur:
+        conn.close()
+        return False
+    cur_idx = PAYMENT_STATUS_FLOW.index(cur['status']) if cur['status'] in PAYMENT_STATUS_FLOW else 0
+    new_idx = PAYMENT_STATUS_FLOW.index(status)
+    if new_idx <= cur_idx:  # 不回退（保持已记录的更靠后状态）
+        conn.close()
+        return True
+    conn.execute(
+        f'UPDATE payment_records SET status=?, {ts_col}=? WHERE id=?',
+        (status, now, pid))
+    conn.commit()
+    conn.close()
+    return True
 
 
 def delete_payment(pid):

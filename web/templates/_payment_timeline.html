@@ -1,0 +1,28 @@
+{# 报销状态时间轴（横排）：已提交 → 审核中 → 已打款 #}
+{% set statuses = ['已提交', '审核中', '已打款'] %}
+{% set ts_map = {'已提交': rec.submitted_at, '审核中': rec.reviewed_at, '已打款': rec.paid_at} %}
+{% set cur_idx = statuses.index(rec.status) if rec.status in statuses else 0 %}
+<div class="timeline-h">
+  {% for st in statuses %}
+  {% set i = loop.index0 %}
+  {% set reached = i <= cur_idx %}
+  {% set current = i == cur_idx %}
+  <div class="tl-node {{ 'done' if reached and not current }} {{ 'current' if current }}">
+    <div class="tl-dot"></div>
+    <div class="tl-body">
+      <span class="tl-label">{{ st }}</span>
+      <span class="tl-time">{{ ts_map[st] or '待处理' }}</span>
+    </div>
+    {% if not loop.last %}<div class="tl-line {{ 'done' if i < cur_idx }}"></div>{% endif %}
+  </div>
+  {% endfor %}
+  <div class="tl-actions">
+    {% if cur_idx < statuses|length - 1 %}
+    <form method="post" action="{{ url_for('payments.set_status', pid=rec.id) }}" style="display:inline">
+      <button type="submit" class="btn ghost small">标记为「{{ statuses[cur_idx + 1] }}」</button>
+    </form>
+    {% else %}
+    <span class="tag green">已完成</span>
+    {% endif %}
+  </div>
+</div>
