@@ -11,6 +11,10 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 
 ## [Unreleased]
 
+### 修复
+
+- 修复一键发版（workflow_dispatch）中 build/release/email 等后续 job 未取 prep 推送后的最新 main、导致误用发版前旧版本号构建与发布的问题（checkout 显式指定 ref: main）
+
 ## [2.0.2] - 2026-08-14
 
 ### 变更
