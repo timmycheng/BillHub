@@ -134,6 +134,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main  # 必须取 prep 推送后的最新 main，否则版本号停留在发版前的旧值
 
       - name: Read version
         id: version
@@ -175,6 +177,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main  # 必须取 prep 推送后的最新 main，否则读到的版本号是发版前的旧值
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -237,6 +241,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main  # 必须取 prep 推送后的最新 main
 
       - name: Read version
         id: version
