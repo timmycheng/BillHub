@@ -51,15 +51,17 @@ SQLite（默认 `bill.db`，WAL 模式），环境变量 `BILLHUB_DB` 指定路�
 
 ## CI/CD
 
+遵循 Keep a Changelog：日常提交代码时，顺手把改动条目写进 `CHANGELOG.md` 顶部 `## [Unreleased]` 对应小节（新增 / 变更 / 修复 / 移除）。
+
 ### 一键发版（推荐）
 
 GitHub 仓库页 → Actions → Build & Release → **Run workflow**：
 
 1. 填版本号（如 `2.0.2`；留空则沿用 pyproject.toml 当前版本）
-2. 可选：粘贴本次 CHANGELOG 小节内容（留空则自动从最近提交记录生成）
+2. 可选：`notes` 里补充内容（会追加到 [Unreleased]；日常已维护 CHANGELOG 则留空）
 3. 点击 Run workflow
 
-流水线自动完成：修改 `pyproject.toml` 版本 → 更新 `CHANGELOG.md` → 提交并推送 main → 构建 Docker 镜像 → 发布 GitHub Release（自动创建 `vX.Y.Z` 标签，Release Notes 取 CHANGELOG 对应小节）→ 邮件分发。
+流水线自动完成：`pyproject.toml` 版本 bump → `[Unreleased]` 小节转正为 `## [x.y.z]`（内容为空时自动从最近提交生成）并新建空 `[Unreleased]` → 提交推送 main → 构建 Docker 镜像 → 发布 GitHub Release（自动创建 `vX.Y.Z` 标签，Release Notes 取 CHANGELOG 对应小节）→ 邮件分发。
 
 ### 手动发版（备用）
 

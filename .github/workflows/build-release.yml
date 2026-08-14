@@ -14,7 +14,7 @@ on:
         description: '发版版本号（如 2.0.2）。留空则用 pyproject.toml 当前版本'
         required: false
       notes:
-        description: '本次 CHANGELOG 小节内容（可选，留空则从最近提交记录自动生成）'
+        description: '追加到 CHANGELOG [Unreleased] 小节的内容（可选；日常改动请直接提交到 Unreleased，此处留空即可）'
         required: false
 
 concurrency:
@@ -49,38 +49,72 @@ jobs:
           fi
           echo "RELEASE_VERSION=$VER" >> "$GITHUB_ENV"
 
-      - name: Bump version & update CHANGELOG
+      - name: Bump version & convert [Unreleased] to version section
         env:
           RELEASE_NOTES: ${{ github.event.inputs.notes }}
         run: |
           python3 - <<'PY'
-          import os, re, subprocess, pathlib
+          import datetime, os, re, subprocess, pathlib
           ver = os.environ['RELEASE_VERSION']
-          notes = os.environ.get('RELEASE_NOTES', '').strip()
-          # 1. bump pyproject.toml 版本号
+          extra = os.environ.get('RELEASE_NOTES', '').strip()
+          date = datetime.date.today().isoformat()
+
+          def find_unreleased(text):
+              m = re.search(r'^## \[Unreleased\][ \t]*\n?', text, re.M)
+              if not m:
+                  return None
+              body_start = m.end()
+              nm = re.search(r'^## \[', text[body_start:], re.M)
+              end = body_start + nm.start() if nm else len(text)
+              return m.start(), body_start, end
+
+          def gen_from_commits():
+              try:
+                  last = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
+                  log = subprocess.check_output(['git', 'log', f'{last}..HEAD', '--pretty=format:- %s']).decode(errors='ignore').strip()
+              except subprocess.CalledProcessError:
+                  log = subprocess.check_output(['git', 'log', '-10', '--pretty=format:- %s']).decode(errors='ignore').strip()
+              return '### 变更\n\n' + (log or '- （无提交说明）')
+
+          ch = pathlib.Path('CHANGELOG.md')
+          text = ch.read_text(encoding='utf-8')
+
+          # 1) 追加本次补充说明到 [Unreleased]（无该小节则创建）
+          if extra:
+              r = find_unreleased(text)
+              if r is None:
+                  vm = re.search(r'^## \[', text, re.M)
+                  block = '## [Unreleased]\n\n' + extra + '\n\n'
+                  text = text[:vm.start()] + block + text[vm.start():] if vm else text.rstrip() + '\n\n' + block
+              else:
+                  s, b, e = r
+                  body = text[b:e].rstrip()
+                  text = text[:b] + (body + '\n\n' if body else '') + extra + '\n\n' + text[e:]
+
+          # 2) [Unreleased] 转正为新版本小节，并在原位置补一个新的空 [Unreleased]
+          r = find_unreleased(text)
+          if r is not None:
+              s, b, e = r
+              body = text[b:e].strip()
+              if not body:
+                  body = gen_from_commits()
+              block = f'## [Unreleased]\n\n## [{ver}] - {date}\n\n{body}\n\n'
+              text = text[:s] + block + text[e:]
+          else:
+              body = gen_from_commits()
+              block = f'## [Unreleased]\n\n## [{ver}] - {date}\n\n{body}\n\n'
+              vm = re.search(r'^## \[', text, re.M)
+              text = text[:vm.start()] + block + text[vm.start():] if vm else text.rstrip() + '\n\n' + block
+          ch.write_text(text, encoding='utf-8')
+
+          # 3) bump pyproject.toml 版本号
           p = pathlib.Path('pyproject.toml')
           c = p.read_text(encoding='utf-8')
           m = re.search(r'(?m)(?<=^version = ")[^"]+(?=")', c)
           if not m:
               raise SystemExit('pyproject.toml 中未找到 version 字段')
           p.write_text(c[:m.start()] + ver + c[m.end():], encoding='utf-8')
-          # 2. CHANGELOG 插入新版本小节（插入到第一个 ## [ 版本标题之前）
-          ch = pathlib.Path('CHANGELOG.md')
-          text = ch.read_text(encoding='utf-8')
-          date = subprocess.check_output(['date', '+%Y-%m-%d']).decode().strip()
-          header = f'## [{ver}] - {date}'
-          if not notes:
-              try:
-                  last = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
-                  log = subprocess.check_output(['git', 'log', f'{last}..HEAD', '--pretty=format:- %s']).decode(errors='ignore').strip()
-              except subprocess.CalledProcessError:
-                  log = subprocess.check_output(['git', 'log', '-10', '--pretty=format:- %s']).decode(errors='ignore').strip()
-              notes = '### 变更\n\n' + (log or '- （无提交说明）')
-          lines = text.split('\n')
-          idx = next((i for i, l in enumerate(lines) if l.startswith('## [')), len(lines))
-          lines[idx:idx] = [header, '', notes, '']
-          ch.write_text('\n'.join(lines), encoding='utf-8')
-          print(f'版本已升到 {ver}，CHANGELOG 已更新')
+          print(f'版本已升到 {ver}，[Unreleased] 已转正为新版本小节')
           PY
 
       - name: Commit & push
