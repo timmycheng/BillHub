@@ -31,7 +31,8 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 
 ### 移除
 
-- **桌面版正式下线**：删除 PyQt6 桌面应用（main.py）、PyInstaller 打包配置（BillHub.spec / build_exe.bat）及桌面依赖（requirements.txt、scripts/）；pyproject 依赖去除 pyqt6 / pyinstaller；CI 停止 exe 打包，仅构建 Web Docker 镜像；发版改为仅 `v*` 标签触发，Release Notes 自动取 CHANGELOG 对应版本小节
+- **桌面版正式下线**：删除 PyQt6 桌面应用（main.py）、PyInstaller 打包配置（BillHub.spec / build_exe.bat）及桌面依赖（requirements.txt）；pyproject 依赖去除 pyqt6 / pyinstaller；CI 停止 exe 打包，仅构建 Web Docker 镜像
+- **CI/CD 调整**：发版改为仅 `v*` 标签触发（普通 push 不触发），Release Notes 自动取 CHANGELOG 对应版本小节；邮件分发恢复：Docker 镜像 zstd 压缩后按 25MB 分卷经 SMTP 逐卷发送，SMTP 配置与收件地址（MAIL_TO）全部置于 GitHub Secrets，仓库不含明文收件信息
 
 ## [1.2.2] - 2026-08-13
 
