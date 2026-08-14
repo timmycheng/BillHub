@@ -178,9 +178,9 @@ def _migrate_contracts():
                 created_at TEXT DEFAULT (datetime('now', 'localtime'))
             );
             INSERT INTO contracts_new (id, contract_no, contract_name, customer_name,
-                                       contract_manager, total_amount, sign_date, remark, created_at)
+                                       total_amount, sign_date, remark, created_at)
                 SELECT id, contract_no, contract_name, customer_name,
-                       contract_manager, total_amount, sign_date, remark, created_at FROM contracts;
+                       total_amount, sign_date, remark, created_at FROM contracts;
             DROP TABLE contracts;
             ALTER TABLE contracts_new RENAME TO contracts;
             ''')

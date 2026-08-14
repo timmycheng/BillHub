@@ -174,8 +174,8 @@ a { color: var(--blue); text-decoration: none; }
 .bar-col { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; color: #8793a2; font-size: 12px; min-width: 56px; position: relative; }
 .bar { width: 30px; border-radius: 7px 7px 2px 2px; background: #9bbcff; min-height: 2px; transition: height .3s; }
 .bar.hot { background: var(--blue); }
-.bar-value { font-size: 11px; color: #6980a5; opacity: 0; transition: .2s; position: absolute; bottom: 30px; }
-.bar-col:hover .bar-value { opacity: 1; }
+.bar-value { font-size: 11px; color: #6980a5; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.bar-col > span { flex-shrink: 0; }
 
 /* 待办列表 */
 .todo-list { display: flex; flex-direction: column; }
@@ -269,18 +269,18 @@ td.link { color: var(--blue); font-weight: 700; }
 .cell-attach .attach-link { font-size: 12px; }
 
 /* 报销状态时间轴（横排） */
-.timeline-h { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 8px 0 4px; }
+.timeline-h { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; margin: 8px 0 4px; }
 .tl-node { display: flex; align-items: center; gap: 0; }
 .tl-dot { width: 12px; height: 12px; border-radius: 50%; background: #d4dbe6; border: 2px solid #d4dbe6; flex: none; }
 .tl-node.done .tl-dot { background: var(--green); border-color: var(--green); }
 .tl-node.current .tl-dot { background: var(--blue); border-color: var(--blue); box-shadow: 0 0 0 4px var(--blue2); }
-.tl-body { display: flex; flex-direction: column; margin: 0 10px; line-height: 1.3; }
+.tl-body { display: flex; flex-direction: column; margin: 0 16px; line-height: 1.3; }
 .tl-label { font-size: 12px; font-weight: 700; color: var(--text); }
 .tl-node:not(.done):not(.current) .tl-label { color: var(--muted); font-weight: 500; }
 .tl-time { font-size: 11px; color: var(--muted); }
-.tl-line { width: 36px; height: 2px; background: #e2e8f0; }
+.tl-line { width: 90px; height: 2px; background: #e2e8f0; }
 .tl-line.done { background: var(--green); }
-.tl-actions { margin-left: auto; padding-left: 12px; }
+.tl-actions { margin-left: 28px; }
 tr.tl-row > td { background: #fafbfd !important; padding: 10px 16px !important; border-bottom: 1px solid var(--line) !important; }
 
 /* 合同附件 */
@@ -294,7 +294,7 @@ tr.tl-row > td { background: #fafbfd !important; padding: 10px 16px !important; 
 .cell-actions { white-space: nowrap; }
 
 /* ============ 表单 ============ */
-.form-panel { max-width: 900px; }
+.form-panel { max-width: 900px; margin: 0 auto; }
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .form-grid .wide { grid-column: 1 / -1; }
 .form-grid .field { font-size: 12px; color: #667286; display: block; }

@@ -19,6 +19,7 @@
   <div class="tl-actions">
     {% if cur_idx < statuses|length - 1 %}
     <form method="post" action="{{ url_for('payments.set_status', pid=rec.id) }}" style="display:inline">
+      <input type="hidden" name="to" value="{{ statuses[cur_idx + 1] }}">
       <button type="submit" class="btn ghost small">标记为「{{ statuses[cur_idx + 1] }}」</button>
     </form>
     {% else %}

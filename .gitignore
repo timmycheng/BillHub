@@ -15,7 +15,6 @@ bill_backup_*.db
 invoices/
 uploads/
 data/
-test/
 models/
 /templates/
 

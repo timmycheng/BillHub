@@ -22,7 +22,8 @@
 ## 测试约定
 
 - 改动后必须跑冒烟测试（Flask `test_client` 覆盖登录 / 合同 / 附件 / 报销 / 状态流转 / OCR / 分页 / 迁移兼容），全部 PASS 才能提交
-- 冒烟测试用临时 `BILLHUB_DB` / `BILLHUB_UPLOAD_DIR`，不得动真实 `bill.db`
+- 冒烟脚本位于 `test/smoke_test.py`（`python test/smoke_test.py`），用临时 `BILLHUB_DB` / `BILLHUB_UPLOAD_DIR`，不得动真实 `bill.db`；依赖外部文件的部分（审批表模板、示例合同 PDF）有 SKIP 兜底
+- 另有辅助脚本：`test/test_contract_ocr.py`（示例合同识别探查）、`test/test_release_prep.py`（发版 prep 逻辑测试）
 
 ## 其他约定
 
