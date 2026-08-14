@@ -11,6 +11,10 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 
 ## [Unreleased]
 
+### 修复
+
+- 修复 Docker 镜像无法启动的问题：waitress-serve 不支持 `module:app()` 写法（启动报 invalid format: 'web.app:create_app()'），CMD 改为 `--call web.app:create_app` 应用工厂形式
+
 ## [2.0.2] - 2026-08-14
 
 ### 变更
