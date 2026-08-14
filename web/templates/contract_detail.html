@@ -136,13 +136,13 @@
   <div class="table-wrap">
     <table>
       <thead><tr>
-        <th>报销日期</th><th>开票日期</th><th>阶段</th><th class="r">金额</th>
+        <th>填报时间</th><th>开票日期</th><th>阶段</th><th class="r">金额</th>
         <th>发票号</th><th>相关文件</th><th>备注</th><th>操作</th>
       </tr></thead>
       <tbody>
       {% for rec in payments %}
         <tr>
-          <td>{{ rec.pay_date }}</td>
+          <td class="muted">{{ rec.created_at }}</td>
           <td>{{ rec.invoice_date or '—' }}</td>
           <td>{{ rec.stage or '—' }}</td>
           <td class="r">¥{{ rec.amount|money }}</td>

@@ -75,7 +75,8 @@ def create():
         flash(f'找不到审批表模板：{template_path}', 'danger')
         return redirect(url_for('contracts.detail', cid=cid))
 
-    pay_date = request.form.get('pay_date', '').strip()
+    # 报销日期不再由用户填写，固定为创建当天的日期（创建时间见 created_at）
+    pay_date = datetime.now().strftime('%Y-%m-%d')
     invoice_date = request.form.get('invoice_date', '').strip()
     invoice_no = request.form.get('invoice_no', '').strip()
     stage = request.form.get('stage', '').strip()
