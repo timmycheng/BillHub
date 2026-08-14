@@ -161,6 +161,34 @@ a { color: var(--blue); text-decoration: none; }
 .green-text { color: var(--green); }
 .orange-text { color: var(--orange); }
 
+/* 两栏（图表 + 待办） */
+.two-col { display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; margin-bottom: 18px; }
+
+/* 付款趋势柱状图 */
+.chart { height: 260px; display: flex; }
+.y-axis { width: 70px; display: flex; flex-direction: column; justify-content: space-between; padding: 6px 6px 26px 0; color: #99a4b3; font-size: 11px; text-align: right; }
+.plot { position: relative; flex: 1; }
+.gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed #e8ecf1; }
+.g1 { top: 6px; } .g2 { top: 50%; }
+.bars { height: 100%; display: flex; align-items: flex-end; justify-content: space-around; padding: 8px 6px 0; }
+.bar-col { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; color: #8793a2; font-size: 12px; min-width: 56px; position: relative; }
+.bar { width: 30px; border-radius: 7px 7px 2px 2px; background: #9bbcff; min-height: 2px; transition: height .3s; }
+.bar.hot { background: var(--blue); }
+.bar-value { font-size: 11px; color: #6980a5; opacity: 0; transition: .2s; position: absolute; bottom: 30px; }
+.bar-col:hover .bar-value { opacity: 1; }
+
+/* 待办列表 */
+.todo-list { display: flex; flex-direction: column; }
+.todo { display: flex; align-items: center; gap: 11px; padding: 13px 0; border-bottom: 1px solid #edf0f4; }
+.todo:last-child { border-bottom: 0; }
+.todo-icon { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; flex: none; }
+.todo-icon.orange { background: var(--orange2); color: var(--orange); }
+.todo-icon.blue { background: var(--blue2); color: var(--blue); }
+.todo-icon.green { background: var(--green2); color: var(--green); }
+.todo strong { font-size: 13px; }
+.todo p { margin: 3px 0 0; font-size: 11px; color: var(--muted); }
+.todo .arrow { border: 0; background: transparent; color: #9aa4b3; margin-left: auto; font-size: 16px; text-decoration: none; }
+
 /* ============ 面板 / 表格 ============ */
 .panel {
   background: #fff; border: 1px solid var(--line); border-radius: 11px;
@@ -378,6 +406,7 @@ body.modal-open { overflow: hidden; }
   .main { margin-left: 210px; width: calc(100% - 210px); }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .detail-top { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
   .sidebar { display: none; }
