@@ -21,7 +21,7 @@
     <nav class="nav">
       <div class="nav-group-title">工作台</div>
       <a class="nav-item {{ 'active' if ep == 'main.dashboard' }}"
-         href="{{ url_for('main.dashboard') }}"><span>◈</span> Dashboard</a>
+         href="{{ url_for('main.dashboard') }}"><span>◈</span> 仪表盘</a>
 
       <div class="nav-group-title">业务管理</div>
       <a class="nav-item {{ 'active' if ep.startswith('contracts.') or ep.startswith('preview.') }}"
@@ -36,13 +36,6 @@
       {% endif %}
     </nav>
     <div class="sidebar-bottom">
-      <div class="mini-user">
-        <div class="avatar">{{ (current_user.display_name or current_user.username)[:1] }}</div>
-        <div>
-          <div class="mini-name">{{ current_user.display_name }}</div>
-          <div class="mini-role">{{ '管理员' if current_user.is_admin else '经办人' }}</div>
-        </div>
-      </div>
       <div class="version">BillHub v2.0 · 内部版</div>
     </div>
   </aside>
@@ -50,7 +43,7 @@
   <main class="main">
     <header class="topbar">
       <div class="breadcrumb">
-        {% block crumb %}<span>工作台</span><span class="sep">/</span><strong>Dashboard</strong>{% endblock %}
+        {% block crumb %}<span>工作台</span><span class="sep">/</span><strong>仪表盘</strong>{% endblock %}
       </div>
       <div class="top-actions">
         <div class="date-chip"></div>

@@ -8,30 +8,8 @@
     <p>管理平台用户与管理员权限。</p>
   </div>
   <div class="head-actions">
-    <a href="{{ url_for('admin.backup') }}" class="btn ghost">💾 备份数据库</a>
+    <button type="button" class="btn primary" onclick="openUserModal('new')">＋ 新建用户</button>
   </div>
-</div>
-
-<div class="panel form-panel">
-  <div class="form-section-title">新建用户</div>
-  <form method="post">
-    <div class="form-grid">
-      <label class="field"><span>用户名 *</span>
-        <input type="text" name="username" required autocomplete="off"></label>
-      <label class="field"><span>初始密码 *（至少 4 位）</span>
-        <input type="text" name="password" required autocomplete="off"></label>
-      <label class="field"><span>显示名</span>
-        <input type="text" name="display_name"></label>
-      <label class="field"><span>角色</span>
-        <select name="is_admin">
-          <option value="">普通用户</option>
-          <option value="on">管理员</option>
-        </select></label>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn primary">创建用户</button>
-    </div>
-  </form>
 </div>
 
 <div class="panel">
@@ -51,31 +29,20 @@
           <td><strong>{{ u.username }}</strong>
             {% if u.ad_dn %}<span class="tag blue">AD</span>{% endif %}
           </td>
-          <td>
-            <form method="post" action="{{ url_for('admin.users_edit', uid=u.id) }}"
-                  style="display:flex;gap:6px;align-items:center">
-              <input type="text" name="display_name" value="{{ u.display_name or '' }}"
-                     style="height:32px;border:1px solid #d9dfe8;border-radius:6px;padding:0 9px;font-size:13px;width:130px">
-              <button type="submit" class="btn ghost small">保存</button>
-            </form>
-          </td>
-          <td>
-            <form method="post" action="{{ url_for('admin.users_edit', uid=u.id) }}">
-              <input type="checkbox" name="is_admin" {{ 'checked' if u.is_admin }}
-                     onchange="this.form.submit()">
-            </form>
-          </td>
+          <td>{{ u.display_name or '—' }}</td>
+          <td>{% if u.is_admin %}<span class="tag blue">管理员</span>
+              {% else %}<span class="tag gray">普通用户</span>{% endif %}</td>
           <td class="muted">{{ u.created_at }}</td>
           <td class="cell-actions">
-            <form method="post" action="{{ url_for('admin.users_password', uid=u.id) }}"
-                  style="display:inline-flex;gap:6px;align-items:center">
-              <input type="text" name="password" placeholder="新密码" required
-                     style="height:32px;border:1px solid #d9dfe8;border-radius:6px;padding:0 9px;font-size:13px;width:90px">
-              <button type="submit" class="btn ghost small">重置密码</button>
-            </form>
+            <button type="button" class="row-btn edit-user"
+                    data-uid="{{ u.id }}"
+                    data-username="{{ u.username }}"
+                    data-display="{{ u.display_name or '' }}"
+                    data-is-admin="{{ 1 if u.is_admin else 0 }}"
+                    data-ad="{{ 1 if u.ad_dn else 0 }}">编辑</button>
             <form method="post" action="{{ url_for('admin.users_delete', uid=u.id) }}"
                   onsubmit="return confirm('确定删除用户「{{ u.username }}」？')" style="display:inline">
-              <button type="submit" class="btn danger small">删除</button>
+              <button type="submit" class="row-btn danger">删除</button>
             </form>
           </td>
         </tr>
@@ -84,4 +51,80 @@
     </table>
   </div>
 </div>
+
+{# ===== 新建 / 编辑用户弹窗 ===== #}
+<div id="modal-user" class="modal" hidden>
+  <div class="modal-dialog modal-lg">
+    <button class="modal-close" onclick="closeModal('modal-user')">✕</button>
+    <div class="modal-body">
+      <div class="reimburse-head">
+        <h3 id="modal-user-title">新建用户</h3>
+      </div>
+      <form method="post" id="user-form" action="{{ url_for('admin.users_create') }}">
+        <div class="form-grid">
+          <label class="field"><span>用户名 *</span>
+            <input type="text" name="username" id="user-username" required autocomplete="off"></label>
+          <label class="field"><span>显示名</span>
+            <input type="text" name="display_name" id="user-display-name"></label>
+          <label class="field"><span>角色</span>
+            <select name="is_admin" id="user-is-admin">
+              <option value="">普通用户</option>
+              <option value="on">管理员</option>
+            </select></label>
+          <label class="field"><span>密码 <span id="user-password-opt" class="muted">*</span></span>
+            <input type="password" name="password" id="user-password" autocomplete="new-password"></label>
+        </div>
+        <p class="muted small">密码至少 8 位，且需包含大写字母、小写字母和特殊字符。</p>
+        <div class="form-actions">
+          <button type="button" class="btn ghost" onclick="closeModal('modal-user')">取消</button>
+          <button type="submit" class="btn primary" id="user-submit">创建用户</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openUserModal(mode, uid, username, displayName, isAdmin, isAd) {
+  var form = document.getElementById('user-form');
+  var title = document.getElementById('modal-user-title');
+  var usernameInput = document.getElementById('user-username');
+  var nameInput = document.getElementById('user-display-name');
+  var roleSelect = document.getElementById('user-is-admin');
+  var passwordInput = document.getElementById('user-password');
+  var passwordOpt = document.getElementById('user-password-opt');
+  var submitBtn = document.getElementById('user-submit');
+  form.reset();
+  if (mode === 'new') {
+    title.textContent = '新建用户';
+    submitBtn.textContent = '创建用户';
+    form.action = '{{ url_for("admin.users_create") }}';
+    usernameInput.disabled = false;
+    usernameInput.required = true;
+    passwordInput.required = true;
+    passwordOpt.textContent = '*';
+  } else {
+    title.textContent = '编辑用户：' + username;
+    submitBtn.textContent = '保存修改';
+    form.action = '/admin/users/' + uid + '/edit';
+    usernameInput.value = username;
+    usernameInput.disabled = true;
+    usernameInput.required = false;
+    nameInput.value = displayName || '';
+    roleSelect.value = isAdmin ? 'on' : '';
+    passwordInput.required = false;
+    passwordOpt.textContent = isAd ? '（AD 账号，可留空；填写则启用本地密码）' : '（留空则不修改）';
+  }
+  openModal('modal-user');
+  if (mode === 'new') usernameInput.focus();
+}
+document.querySelectorAll('.edit-user').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    openUserModal('edit', btn.dataset.uid, btn.dataset.username,
+      btn.dataset.display, btn.dataset.isAdmin === '1', btn.dataset.ad === '1');
+  });
+});
+</script>
 {% endblock %}

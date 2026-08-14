@@ -2,6 +2,7 @@
 
 P1 阶段仅本地账号密码；P5 将在此加入 LDAP/AD 双通道（verify_password 旁扩展）。"""
 from functools import wraps
+import re
 
 from flask import (Blueprint, abort, flash, redirect, render_template,
                    request, url_for)
@@ -10,6 +11,19 @@ from flask_login import (LoginManager, UserMixin, current_user, login_required,
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
+
+PASSWORD_RULE = '密码至少 8 位，且需包含大写字母、小写字母和特殊字符'
+
+
+def password_error(password):
+    """密码强度校验：8 位以上、包含大小写和特殊字符。返回错误文案或 None。"""
+    if len(password) < 8:
+        return '密码至少 8 位'
+    if not re.search(r'[a-z]', password) or not re.search(r'[A-Z]', password):
+        return '密码需包含大写和小写字母'
+    if not re.search(r'[^A-Za-z0-9]', password):
+        return '密码需包含特殊字符'
+    return None
 
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
@@ -128,12 +142,14 @@ def change_password():
         confirm = request.form.get('confirm_password', '')
         if not verify_password(old, user_row.get('password_hash')):
             flash('原密码错误', 'danger')
-        elif len(new) < 4:
-            flash('新密码至少 4 位', 'danger')
         elif new != confirm:
             flash('两次输入的新密码不一致', 'danger')
         else:
-            db.update_user(int(current_user.id), password_hash=hash_password(new))
-            flash('密码已修改，请牢记', 'success')
-            return redirect(url_for('main.dashboard'))
+            err = password_error(new)
+            if err:
+                flash(err, 'danger')
+            else:
+                db.update_user(int(current_user.id), password_hash=hash_password(new))
+                flash('密码已修改，请牢记', 'success')
+                return redirect(url_for('main.dashboard'))
     return render_template('account/password.html')
