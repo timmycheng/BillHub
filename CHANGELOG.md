@@ -6,6 +6,15 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 版本格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 并遵守 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+日常改动请顺手把条目写进顶部 `## [Unreleased]` 对应小节（新增/变更/修复/移除），
+发版时由 CI 自动将 [Unreleased] 转正为版本小节（详见 README「一键发版」）。
+
+## [Unreleased]
+
+### 变更
+
+- 一键发版：Actions → Run workflow 填版本号即可发版——自动 bump 版本、将 [Unreleased] 小节转正为版本小节并提交推送、构建镜像、发布 Release（Notes 取 CHANGELOG）、邮件分发；`v*` 标签推送保留为手动兜底
+
 ## [2.0.1] - 2026-08-14
 
 ### 变更
