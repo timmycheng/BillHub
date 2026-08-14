@@ -6,9 +6,12 @@
 ## 前置条件
 
 - 内网服务器已装 Docker（≥ 20.10，支持 compose v2）
-- 从 GitHub Release 下载（带公网的机器下载后通过 USB/介质拷入内网）：
-  - `billhub-web-<VERSION>.tar.zst` —— Web 镜像
-  - `deploy-bundle.zip` —— 本部署包（docker-compose.yml / .env.example / deploy.md）
+- 获取镜像（两种方式任选其一）：
+  1. **GitHub Release**：带公网的机器下载 `billhub-web-<VERSION>.tar.zst` 与 `deploy-bundle.zip`，通过 USB/介质拷入内网
+  2. **邮件分卷**：CI 发版时会把镜像按 25MB 分卷发到收件邮箱，收齐全部分卷后合并：
+     ```bash
+     cat *.tar.zst.part* > billhub-web-<VERSION>.tar.zst   # Windows 用 copy /b *.part* 目标名
+     ```
 
 ## 部署步骤
 

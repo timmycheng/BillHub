@@ -56,3 +56,9 @@ SQLite（默认 `bill.db`，WAL 模式），环境变量 `BILLHUB_DB` 指定路�
 1. 修改 `pyproject.toml` 版本号，并在 `CHANGELOG.md` 写好对应版本的 `## [x.y.z]` 小节
 2. 提交到 `main` 后打标签推送：`git tag v<x.y.z> && git push origin v<x.y.z>`
 3. 自动构建 `billhub-web` 镜像并导出离线 tar（zstd 压缩），发布 GitHub Release（Release Notes 自动取 CHANGELOG 对应小节），附带部署包（docker-compose / .env.example / deploy.md）
+4. 镜像自动按 25MB 分卷通过邮件发送到收件人（内网环境无法上 GitHub 时可直接收邮件导入）
+
+邮件分发需在仓库 Secrets 配置（保证私密性，仓库内无明文收件信息）：
+
+- `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` —— 发件邮箱及授权码
+- `MAIL_TO` —— 收件人地址
