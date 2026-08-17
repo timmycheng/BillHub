@@ -50,3 +50,6 @@ class Config:
     # 首次启动自动种子的默认管理员（仅当 users 表为空时生效）
     DEFAULT_ADMIN_USERNAME = os.environ.get('BILLHUB_ADMIN_USER', 'admin')
     DEFAULT_ADMIN_PASSWORD = os.environ.get('BILLHUB_ADMIN_PASS', 'admin')
+
+    # 批量导入用户的初始密码（须满足密码强度规则：8 位以上含大小写与特殊字符）
+    IMPORT_DEFAULT_PASSWORD = os.environ.get('BILLHUB_IMPORT_PASSWORD', 'Abc12345!')

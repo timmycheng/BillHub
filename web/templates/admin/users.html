@@ -8,6 +8,12 @@
     <p>管理平台用户与管理员权限。</p>
   </div>
   <div class="head-actions">
+    <a href="{{ url_for('admin.users_import_template') }}" class="btn ghost">下载导入模板</a>
+    <button type="button" class="btn ghost" onclick="document.getElementById('import-file').click()">批量导入</button>
+    <form method="post" action="{{ url_for('admin.users_import') }}" enctype="multipart/form-data" style="display:none">
+      <input id="import-file" type="file" name="file" accept=".xlsx"
+             onchange="if(this.value) this.form.submit()">
+    </form>
     <button type="button" class="btn primary" onclick="openUserModal('new')">＋ 新建用户</button>
   </div>
 </div>
@@ -28,6 +34,7 @@
           <td class="muted">{{ u.id }}</td>
           <td><strong>{{ u.username }}</strong>
             {% if u.ad_dn %}<span class="tag blue">AD</span>{% endif %}
+            {% if u.must_change_password %}<span class="tag orange">待改密</span>{% endif %}
           </td>
           <td>{{ u.display_name or '—' }}</td>
           <td>{% if u.is_admin %}<span class="tag blue">管理员</span>
