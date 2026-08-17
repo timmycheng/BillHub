@@ -401,6 +401,8 @@ body.modal-open { overflow: hidden; }
 }
 
 /* ============ 更新说明 ============ */
+.changelog-intro { padding: 16px 24px 0; }
+.changelog-intro p { margin: 0; color: var(--muted); font-size: 14px; }
 .changelog-doc { padding: 8px 24px 24px; }
 .changelog-doc h2 { font-size: 17px; margin: 22px 0 10px; padding-bottom: 8px;
   border-bottom: 1px solid var(--line); color: var(--text); }
