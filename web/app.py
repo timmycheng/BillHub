@@ -24,6 +24,12 @@ def create_app(config_class=Config):
     # 静态资源不长期缓存（开发期改 CSS/JS 立即生效；配合下面的 ?v= 缓存破坏）
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
+    # 系统时间统一北京时间：默认把进程时区设为东八区（影响 SQLite 的
+    # datetime('now','localtime') 默认值）；显式设置过 TZ 的环境不受影响
+    os.environ.setdefault('TZ', 'Asia/Shanghai')
+    if hasattr(time, 'tzset'):
+        time.tzset()
+
     # 初始化数据库（建表 + 增量迁移）+ 首次启动种子管理员
     db.init_db()
     _seed_admin(app)
