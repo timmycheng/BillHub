@@ -280,7 +280,6 @@ td.link { color: var(--blue); font-weight: 700; }
 .tl-time { font-size: 11px; color: var(--muted); }
 .tl-line { width: 90px; height: 2px; background: #e2e8f0; }
 .tl-line.done { background: var(--green); }
-.tl-actions { margin-left: 28px; }
 tr.tl-row > td { background: #fafbfd !important; padding: 10px 16px !important; border-bottom: 1px solid var(--line) !important; }
 tr.rec-row { cursor: pointer; }
 

@@ -169,6 +169,9 @@ def set_status(pid):
     if not rec:
         abort(404)
     _get_accessible_contract(rec['contract_id'])
+    if not current_user.is_admin:
+        flash('仅管理员可推进报销状态', 'danger')
+        return redirect(request.referrer or url_for('payments.page'))
     to = request.form.get('to', '').strip()
     if to not in db.PAYMENT_STATUS_FLOW:
         flash('未知的状态', 'danger')
