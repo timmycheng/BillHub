@@ -3,7 +3,7 @@
 import os
 import re
 import tempfile
-from datetime import date, datetime
+from datetime import date
 
 from flask import (Blueprint, abort, current_app, flash, redirect, render_template,
                    request, send_file, url_for)
@@ -271,7 +271,7 @@ def upload_file(cid):
     save_dir = os.path.join(current_app.config['CONTRACT_FILE_DIR'], str(cid))
     os.makedirs(save_dir, exist_ok=True)
     safe = re.sub(r'[^\w\-.]', '_', f.filename) or (kind + ext)
-    fname = f"{kind}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe}"
+    fname = f"{kind}_{db.cn_now().strftime('%Y%m%d%H%M%S')}_{safe}"
     dest = os.path.join(save_dir, fname)
     f.save(dest)
     db.set_contract_file(cid, col, dest)

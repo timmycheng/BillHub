@@ -16,6 +16,7 @@ import sys
 import tempfile
 import tomllib
 import zipfile
+from datetime import datetime
 
 import openpyxl
 
@@ -185,6 +186,11 @@ r = c.post('/contracts/new', data={
 }, follow_redirects=True)
 txt = html_of(r)
 check('POST /contracts/new -> detail', r.status_code == 200 and '信息系统安全服务合同' in txt)
+created_at = db.get_contract(1)['created_at']
+_cn_created = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S').replace(tzinfo=db.cn_now().tzinfo)
+_delta_cn = abs((db.cn_now() - _cn_created).total_seconds())
+check('created_at 为北京时间（与东八区当前时间相差 <10 分钟）',
+      _delta_cn < 600, f'相差 {_delta_cn:.0f} 秒')
 check('detail shows plan', '付款计划' in txt and '第1期' in txt)
 plan_seg = txt[txt.index('付款计划'):txt.index('报销记录')]
 check('付款计划期次状态默认「待付款」（无对应报销记录）',
@@ -250,6 +256,7 @@ if os.path.exists(TEMPLATE):
     }, content_type='multipart/form-data', follow_redirects=True)
     txt = html_of(r)
     check('POST /payments/create', '审批表已生成' in txt, txt[:300])
+    check('报销 pay_date 为北京日期', db.get_payment(1)['pay_date'] == db.cn_now().strftime('%Y-%m-%d'))
 
     r = c.get('/preview/1')
     check('GET /preview/1', r.status_code == 200 and '合同支付审批表' in html_of(r))
@@ -288,6 +295,10 @@ if os.path.exists(TEMPLATE):
     r = c.post('/payments/1/status', data={'to': '审核中'}, follow_redirects=True)
     txt = html_of(r)
     check('advance to 审核中', '审核中' in txt and '标记为「已打款」' in txt)
+    _rev = db.get_payment(1)['reviewed_at']
+    _cn_rev = datetime.strptime(_rev, '%Y-%m-%d %H:%M').replace(tzinfo=db.cn_now().tzinfo)
+    check('状态流转时间戳为北京时间（相差 <10 分钟）',
+          abs((db.cn_now() - _cn_rev).total_seconds()) < 600)
     seg = html_of(c.get('/contracts/1'))
     seg = seg[seg.index('付款计划'):seg.index('报销记录')]
     check('付款计划期次状态与报销状态一致（审核中）',
@@ -496,6 +507,7 @@ with open(os.path.join(BASE, 'Dockerfile.web'), encoding='utf-8') as fh:
     df = fh.read()
 check('Dockerfile CMD 使用 --call 工厂形式', '--call", "web.app:create_app' in df
       and 'create_app()' not in df)
+check('Dockerfile 固定 TZ=Asia/Shanghai 并安装 tzdata', 'ENV TZ=Asia/Shanghai' in df and 'tzdata' in df)
 
 shutil.rmtree(TMP, ignore_errors=True)
 print()

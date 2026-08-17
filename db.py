@@ -7,10 +7,18 @@
 import sqlite3
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 DB_PATH = os.environ.get('BILLHUB_DB') or os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'bill.db')
+
+# 北京时间（东八区固定偏移，无夏令时；不依赖系统时区与 tzdata）
+_CN_TZ = timezone(timedelta(hours=8))
+
+
+def cn_now():
+    """当前北京时间（aware datetime），与服务器/容器时区无关。"""
+    return datetime.now(_CN_TZ)
 
 
 def get_conn():
@@ -208,11 +216,12 @@ def add_contract(contract_no, contract_name, customer_name, total_amount, sign_d
         cur = conn.execute(
             'INSERT INTO contracts (contract_no, contract_name, customer_name, contract_manager, '
             'category, payee, bank_name, bank_account, total_amount, sign_date, '
-            'start_date, end_date, remark, owner_id) '
-            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            'start_date, end_date, remark, owner_id, created_at) '
+            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             (contract_no.strip() or None, contract_name, customer_name, contract_manager,
              category, payee, bank_name, bank_account, float(total_amount),
-             sign_date, start_date, end_date, remark, owner_id))
+             sign_date, start_date, end_date, remark, owner_id,
+             cn_now().strftime('%Y-%m-%d %H:%M:%S')))
         conn.commit()
         return cur.lastrowid
     except sqlite3.IntegrityError:
@@ -278,10 +287,11 @@ def add_payment(contract_id, pay_date, stage, amount, invoice_no='', invoice_dat
     conn = get_conn()
     cur = conn.execute(
         'INSERT INTO payment_records (contract_id, pay_date, invoice_date, stage, amount, '
-        'invoice_no, main_content, remark, invoice_file, report_file, user_id) '
-        'VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+        'invoice_no, main_content, remark, invoice_file, report_file, user_id, created_at) '
+        'VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
         (contract_id, pay_date, invoice_date or '', stage, float(amount), invoice_no,
-         main_content, remark, invoice_file, report_file, user_id))
+         main_content, remark, invoice_file, report_file, user_id,
+         cn_now().strftime('%Y-%m-%d %H:%M:%S')))
     conn.commit()
     conn.close()
     return cur.lastrowid
@@ -307,7 +317,7 @@ def set_payment_status(pid, status):
     if status not in PAYMENT_STATUS_FLOW:
         raise ValueError(f'非法状态：{status}')
     ts_col = PAYMENT_STATUS_TS[status]
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    now = cn_now().strftime('%Y-%m-%d %H:%M')
     conn = get_conn()
     cur = conn.execute('SELECT status FROM payment_records WHERE id=?', (pid,)).fetchone()
     if not cur:
@@ -518,7 +528,7 @@ def get_plan_status(cid, extra_record=None):
 
 def backup_db():
     """备份数据库 bill_backup_YYYYMMDD_HHMMSS_mmm.db（微秒时间戳防重名）"""
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+    ts = cn_now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
     backup = os.path.join(os.path.dirname(DB_PATH), f'bill_backup_{ts}.db')
     conn = get_conn()
     conn.execute(f"VACUUM INTO '{backup}'")
@@ -530,8 +540,8 @@ def backup_db():
 def add_payment_file(payment_id, orig_name, path):
     conn = get_conn()
     cur = conn.execute(
-        'INSERT INTO payment_files (payment_id, orig_name, path) VALUES (?,?,?)',
-        (payment_id, orig_name, path))
+        'INSERT INTO payment_files (payment_id, orig_name, path, created_at) VALUES (?,?,?,?)',
+        (payment_id, orig_name, path, cn_now().strftime('%Y-%m-%d %H:%M:%S')))
     conn.commit()
     conn.close()
     return cur.lastrowid
@@ -568,9 +578,10 @@ def create_user(username, password_hash, display_name='', is_admin=0, ad_dn='',
     try:
         cur = conn.execute(
             'INSERT INTO users (username, password_hash, display_name, is_admin, ad_dn, '
-            'must_change_password) VALUES (?,?,?,?,?,?)',
+            'must_change_password, created_at) VALUES (?,?,?,?,?,?,?)',
             (username.strip(), password_hash, display_name, int(bool(is_admin)), ad_dn,
-             int(bool(must_change_password))))
+             int(bool(must_change_password)),
+             cn_now().strftime('%Y-%m-%d %H:%M:%S')))
         conn.commit()
         return cur.lastrowid
     except sqlite3.IntegrityError:
