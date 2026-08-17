@@ -91,6 +91,7 @@ def init_db():
         display_name TEXT,                     -- 显示名
         is_admin INTEGER DEFAULT 0,            -- 管理员绕过经办人隔离
         ad_dn TEXT,                            -- LDAP distinguishedName，启用 AD 时用
+        must_change_password INTEGER DEFAULT 0, -- 批量导入初始密码用户：首次登录强制改密
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
     ''')
@@ -148,6 +149,9 @@ def _migrate_users():
         cols = {r[1] for r in conn.execute('PRAGMA table_info(payment_records)').fetchall()}
         if 'user_id' not in cols:
             conn.execute('ALTER TABLE payment_records ADD COLUMN user_id INTEGER REFERENCES users(id)')
+        cols = {r[1] for r in conn.execute('PRAGMA table_info(users)').fetchall()}
+        if 'must_change_password' not in cols:
+            conn.execute('ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0')
         conn.commit()
     finally:
         conn.close()
@@ -556,15 +560,17 @@ def delete_payment_file(file_id):
 
 
 # ============ 用户 CRUD ============
-def create_user(username, password_hash, display_name='', is_admin=0, ad_dn=''):
+def create_user(username, password_hash, display_name='', is_admin=0, ad_dn='',
+                must_change_password=0):
     """新建用户。username 重复返回 None。password_hash 由调用方（web/auth.py）用
     werkzeug 预先哈希，db 层不依赖 werkzeug。"""
     conn = get_conn()
     try:
         cur = conn.execute(
-            'INSERT INTO users (username, password_hash, display_name, is_admin, ad_dn) '
-            'VALUES (?,?,?,?,?)',
-            (username.strip(), password_hash, display_name, int(bool(is_admin)), ad_dn))
+            'INSERT INTO users (username, password_hash, display_name, is_admin, ad_dn, '
+            'must_change_password) VALUES (?,?,?,?,?,?)',
+            (username.strip(), password_hash, display_name, int(bool(is_admin)), ad_dn,
+             int(bool(must_change_password))))
         conn.commit()
         return cur.lastrowid
     except sqlite3.IntegrityError:
@@ -602,7 +608,8 @@ def count_users():
     return row['n'] if row else 0
 
 
-def update_user(user_id, display_name=None, is_admin=None, password_hash=None, ad_dn=None):
+def update_user(user_id, display_name=None, is_admin=None, password_hash=None, ad_dn=None,
+                must_change_password=None):
     """部分更新用户；仅传需要修改的字段。"""
     conn = get_conn()
     fields, params = [], []
@@ -614,6 +621,8 @@ def update_user(user_id, display_name=None, is_admin=None, password_hash=None, a
         fields.append('password_hash=?'); params.append(password_hash)
     if ad_dn is not None:
         fields.append('ad_dn=?'); params.append(ad_dn)
+    if must_change_password is not None:
+        fields.append('must_change_password=?'); params.append(int(bool(must_change_password)))
     if fields:
         params.append(user_id)
         conn.execute(f'UPDATE users SET {",".join(fields)} WHERE id=?', params)

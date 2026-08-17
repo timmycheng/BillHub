@@ -17,6 +17,8 @@ import tempfile
 import tomllib
 import zipfile
 
+import openpyxl
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 with open(os.path.join(BASE, 'pyproject.toml'), 'rb') as _fh:
     APP_VER = tomllib.load(_fh)['project']['version']
@@ -125,6 +127,45 @@ r = c.post('/account/password',
                  'confirm_password': 'Qwe12345#'}, follow_redirects=True)
 check('改密：强密码成功', '密码已修改' in html_of(r))
 check('GET /account/password', c.get('/account/password').status_code == 200)
+
+login()
+
+# ============ 用户批量导入 + 首次登录强制改密 ============
+r = c.get('/admin/users/import/template')
+check('下载用户导入模板', r.status_code == 200
+      and 'spreadsheetml' in (r.content_type or ''))
+_wb = openpyxl.Workbook()
+_ws = _wb.active
+_ws.append(['用户名', '显示名', '是否管理员'])
+_ws.append(['zhangsan', '张三', '否'])
+_ws.append(['lisi', '李四', '是'])
+_ws.append(['u1', '重复用户', '否'])
+_buf = io.BytesIO()
+_wb.save(_buf)
+_buf.seek(0)
+r = c.post('/admin/users/import', data={'file': (_buf, 'users.xlsx')},
+           content_type='multipart/form-data', follow_redirects=True)
+txt = html_of(r)
+check('批量导入：新增 2 跳过 1（重复 u1）', '新增 2 人' in txt and '跳过 1 人' in txt and 'u1' in txt)
+check('批量导入：管理员标记与显示名正确',
+      db.get_user_by_username('lisi')['is_admin'] == 1
+      and db.get_user_by_username('zhangsan')['display_name'] == '张三'
+      and db.get_user_by_username('zhangsan')['must_change_password'] == 1)
+check('用户列表出现待改密标签', '待改密' in txt)
+
+r = login('zhangsan', 'Abc12345!')
+check('初始密码登录直接进入改密页', '首次登录' in html_of(r) and '修改密码' in html_of(r))
+r = c.get('/contracts', follow_redirects=False)
+check('未改密前访问业务页被强制跳转改密', r.status_code == 302
+      and '/account/password' in (r.headers.get('Location') or ''))
+r = c.get('/', follow_redirects=True)
+check('未改密前首页也跳转改密', '修改密码' in html_of(r) and '合同数量' not in html_of(r))
+r = c.post('/account/password',
+           data={'old_password': 'Abc12345!', 'new_password': 'Zxc45678!',
+                 'confirm_password': 'Zxc45678!'}, follow_redirects=True)
+check('改密成功后解锁进入工作台', '仪表盘' in html_of(r))
+r = c.get('/contracts')
+check('改密后业务页恢复正常访问', r.status_code == 200 and '合同管理' in html_of(r))
 
 login()
 
@@ -440,7 +481,7 @@ try:
            'scan_file', 'owner_id'} <= cols
           and n == 1 and name == '旧合同'
           and pay[0] == '已提交' and pay[1] is not None
-          and {'ad_dn', 'password_hash'} <= ucols
+          and {'ad_dn', 'password_hash', 'must_change_password'} <= ucols
           and 'main_content' in pcols)
     check('迁移兼容（最旧结构重建 + 回填）', ok)
 finally:
