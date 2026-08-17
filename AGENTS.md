@@ -18,7 +18,7 @@
 - 需求 / 缺陷统一用 GitHub Issues 管理：功能用「功能需求」模板，缺陷用「Bug 报告」模板；新建自动打「待开发」标签
 - 开发：在 Issue 下评论 `/dev`，机器人自动创建关联分支 `issue-N` 并打「开发中」标签
 - 提 PR（用 PR 模板，描述写明 `Closes #N`）→ CI 自动跑冒烟测试；建议打 CHANGELOG 归类标签：`新增` / `变更` / `修复` / `移除`（不打默认「变更」）
-- 合并后：changelog-bot 按标签自动把条目追加到 `[Unreleased]`（纯文档 PR 或 PR 已手动改过 CHANGELOG.md 则跳过）；关联 Issue 自动关闭并打「已完成」标签
+- 合并后：changelog-bot 按标签自动把条目追加到 `[Unreleased]`（纯文档 PR 或 PR 已手动改过 CHANGELOG.md 则跳过）；一个 PR 关闭多个 Issue 时条目会列出全部编号（如（#1、#2））；关联 Issue 自动关闭并打「已完成」标签
 - 直接 push main 的改动（无 PR）仍须手动写 CHANGELOG 条目，与代码同一提交
 
 ## 发版流程（交给 CI，禁止手动发版）
