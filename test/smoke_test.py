@@ -145,6 +145,9 @@ r = c.post('/contracts/new', data={
 txt = html_of(r)
 check('POST /contracts/new -> detail', r.status_code == 200 and '信息系统安全服务合同' in txt)
 check('detail shows plan', '付款计划' in txt and '第1期' in txt)
+plan_seg = txt[txt.index('付款计划'):txt.index('报销记录')]
+check('付款计划期次状态默认「待付款」（无对应报销记录）',
+      '待付款' in plan_seg and '已提交' not in plan_seg and '部分支付' not in plan_seg)
 check('detail shows start/end date', '2026-01-01' in txt and '2026-12-31' in txt)
 
 r = c.get('/contracts/1')
@@ -233,10 +236,17 @@ if os.path.exists(TEMPLATE):
     r = c.post('/payments/1/status', data={'to': '审核中'}, follow_redirects=True)
     txt = html_of(r)
     check('advance to 审核中', '审核中' in txt and '标记为「已打款」' in txt)
+    seg = html_of(c.get('/contracts/1'))
+    seg = seg[seg.index('付款计划'):seg.index('报销记录')]
+    check('付款计划期次状态与报销状态一致（审核中）',
+          '审核中' in seg and '待付款' in seg and '¥258,000.00' in seg)
     r = c.post('/payments/1/status', data={'to': '已打款'}, follow_redirects=True)
     txt = html_of(r)
     check('advance to 已打款', '已完成' in txt)
     check('no rollback', '标记为' not in txt)
+    seg = html_of(c.get('/contracts/1'))
+    seg = seg[seg.index('付款计划'):seg.index('报销记录')]
+    check('付款计划期次状态与报销状态一致（已打款）', '已打款' in seg and '待付款' in seg)
 
     r = c.get('/contracts/1')
     check('detail page lists attachments', '补充说明.pdf' in html_of(r))

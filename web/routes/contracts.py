@@ -90,6 +90,16 @@ def detail(cid):
     stages, surplus = db.get_plan_status(cid)
     plan = db.list_payment_plan(cid)
     payments = db.list_payments(cid)
+    # 每期状态与对应报销记录状态一致：按 stage 匹配期次，多条取最新（id 最大）一条
+    stage_status = {}
+    if plan:
+        n = len(plan)
+        for rec in sorted(payments, key=lambda r: r['id'], reverse=True):
+            idx = db._match_stage(rec.get('stage'), n)
+            if idx is not None and idx + 1 not in stage_status:
+                stage_status[idx + 1] = rec.get('status') or '已提交'
+    for s in stages:
+        s['rec_status'] = stage_status.get(s['seq'])  # None → 待付款
     # 经办人=合同归属用户（owner_id），无则回退 contract_manager 文本
     owner = db.get_user(c['owner_id']) if c.get('owner_id') else None
     owner_name = (owner['display_name'] if owner else None) or c.get('contract_manager') or ''

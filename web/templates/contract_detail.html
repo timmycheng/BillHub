@@ -115,9 +115,10 @@
           <td class="r">¥{{ st.paid|money }}</td>
           <td class="r">¥{{ st.remaining|money }}</td>
           <td>
-            {% if st.remaining <= 0 %}<span class="tag green">已完成</span>
-            {% elif st.paid > 0 %}<span class="tag blue">部分支付</span>
-            {% else %}<span class="tag orange">待付款</span>{% endif %}
+            {% if st.rec_status == '已打款' %}<span class="tag green">已打款</span>
+            {% elif st.rec_status == '审核中' %}<span class="tag blue">审核中</span>
+            {% elif st.rec_status == '已提交' %}<span class="tag orange">已提交</span>
+            {% else %}<span class="tag gray">待付款</span>{% endif %}
           </td>
         </tr>
       {% endfor %}
