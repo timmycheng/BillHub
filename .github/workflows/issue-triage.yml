@@ -15,6 +15,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       ISSUE: ${{ github.event.issue.number }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: 新建 → 待开发
         if: github.event.action == 'opened'
         run: gh issue edit "$ISSUE" --add-label 待开发
