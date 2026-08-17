@@ -5,11 +5,14 @@
 <div class="page-head">
   <div>
     <h1>更新说明</h1>
-    <p>BillHub 各版本变更记录，与 CHANGELOG 内容同步。</p>
+    <p>查看 BillHub 每次更新带来的新功能、优化与修复。</p>
   </div>
 </div>
 
 <div class="panel">
+  <div class="changelog-intro">
+    <p>各版本变更记录，最新改动显示在最上方。</p>
+  </div>
   <div class="changelog-doc">
     {% if content_html %}{{ content_html|safe }}{% else %}<p class="muted pad-sm">暂无更新说明</p>{% endif %}
   </div>
