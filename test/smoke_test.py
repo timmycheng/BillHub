@@ -197,6 +197,30 @@ check('付款计划期次状态默认「待付款」（无对应报销记录）'
       '待付款' in plan_seg and '已提交' not in plan_seg and '部分支付' not in plan_seg)
 check('detail shows start/end date', '2026-01-01' in txt and '2026-12-31' in txt)
 
+# ============ 删除用户外键保护（名下合同拒绝删除 + 转移后可删）============
+r = c.post('/admin/users', data={'username': 'u2', 'password': 'Abc12345!',
+                                 'display_name': '用户二', 'is_admin': ''},
+           follow_redirects=True)
+check('创建 u2', '已创建用户：u2' in html_of(r))
+u2 = db.get_user_by_username('u2')
+r = c.post('/contracts/new', data={'contract_name': 'u2名下合同', 'total_amount': '1000',
+                                   'owner_id': str(u2['id'])}, follow_redirects=True)
+check('管理员建合同归属 u2', 'u2名下合同' in html_of(r) and db.list_contracts(owner_id=u2['id']))
+u2_cid = db.list_contracts(owner_id=u2['id'])[0]['id']
+r = c.post(f'/admin/users/{u2["id"]}/delete', follow_redirects=True)
+txt = html_of(r)
+check('删除名下有合同的用户被拒绝并友好提示',
+      r.status_code == 200 and '名下还有 1 个合同' in txt and '转移经办人' in txt)
+check('u2 未被删除', db.get_user_by_username('u2') is not None)
+r = c.post(f'/contracts/{u2_cid}/edit',
+           data={'contract_name': 'u2名下合同', 'total_amount': '1000', 'owner_id': '1'},
+           follow_redirects=True)
+check('转移经办人后合同归属管理员', db.get_contract(u2_cid)['owner_id'] == 1)
+r = c.post(f'/admin/users/{u2["id"]}/delete', follow_redirects=True)
+check('转移后删除用户成功', '已删除用户：u2' in html_of(r)
+      and db.get_user_by_username('u2') is None)
+c.post(f'/contracts/{u2_cid}/delete', follow_redirects=True)
+
 r = c.get('/contracts/1')
 check('GET /contracts/1', r.status_code == 200)
 detail_html = html_of(r)
@@ -327,21 +351,24 @@ if os.path.exists(TEMPLATE):
         'contract_no': 'HT-U1-001', 'contract_name': 'u1外包合同', 'customer_name': 'U1公司',
         'total_amount': '50000', 'plan_ratio': ['100'], 'plan_amount': ['50000'],
     }, follow_redirects=True)
+    _u1 = db.get_user_by_username('u1')
+    u1_cid = db.list_contracts(owner_id=_u1['id'])[0]['id']
     c.post('/payments/create', data={
-        'contract_id': '2', 'invoice_date': '2026-08-12',
+        'contract_id': str(u1_cid), 'invoice_date': '2026-08-12',
         'invoice_no': '99887766', 'stage': '第1期', 'amount': '10000',
         'main_content': '', 'remark': '',
     }, content_type='multipart/form-data', follow_redirects=True)
+    u1_pid = db.list_payments(u1_cid)[0]['id']
     txt = html_of(c.get('/payments'))
-    check('经办人列表不含状态流转按钮', 'BX-00003' in txt and '标记为' not in txt and 'name="to"' not in txt)
-    txt = html_of(c.get('/contracts/2'))
+    check('经办人列表不含状态流转按钮', f'BX-{u1_pid:05d}' in txt and '标记为' not in txt and 'name="to"' not in txt)
+    txt = html_of(c.get(f'/contracts/{u1_cid}'))
     check('经办人详情不含状态流转按钮', '标记为' not in txt and 'name="to"' not in txt)
-    r = c.post('/payments/3/status', data={'to': '审核中'}, follow_redirects=True)
+    r = c.post(f'/payments/{u1_pid}/status', data={'to': '审核中'}, follow_redirects=True)
     txt = html_of(r)
     check('经办人直接 POST 状态被拒并提示无权限',
-          '仅管理员可推进报销状态' in txt and db.get_payment(3)['status'] == '已提交')
+          '仅管理员可推进报销状态' in txt and db.get_payment(u1_pid)['status'] == '已提交')
     login('admin', 'admin')
-    c.post('/contracts/2/delete', follow_redirects=True)
+    c.post(f'/contracts/{u1_cid}/delete', follow_redirects=True)
 
     r = c.get('/contracts/1')
     check('detail page lists attachments', '补充说明.pdf' in html_of(r))
@@ -444,6 +471,15 @@ if pdfs:
     check('合同 OCR（示例 PDF）', ok, repr(j)[:200])
 else:
     print('SKIP 合同 OCR（示例 PDF）——templates 下无样例合同')
+
+# ============ 删除用户：报销记录 user_id 置空保留 ============
+_uid3 = db.create_user('u3temp', None, display_name='临时用户')
+_pid3 = db.add_payment(contract_id=1, pay_date=db.cn_now().strftime('%Y-%m-%d'),
+                       stage='', amount=9.9, user_id=_uid3)
+db.delete_user(_uid3)
+check('删除用户后其报销记录 user_id 置空保留',
+      db.get_payment(_pid3) is not None and db.get_payment(_pid3)['user_id'] is None
+      and db.get_user(_uid3) is None)
 
 # ============ 迁移兼容 ============
 old_db = os.path.join(TMP, 'old.db')
