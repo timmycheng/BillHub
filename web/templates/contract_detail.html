@@ -86,8 +86,10 @@
         <form method="post" action="{{ url_for('contracts.upload_file', cid=c.id) }}"
               enctype="multipart/form-data" class="attach-upload" style="display:inline">
           <input type="hidden" name="kind" value="{{ kind }}">
-          <input type="file" name="file" accept="{{ exts|join(',') }}" required>
-          <button type="submit" class="btn ghost small">{{ '更换' if path else '上传' }}</button>
+          <input type="file" name="file" accept="{{ exts|join(',') }}" required style="display:none"
+                 onchange="this.form.submit()">
+          <button type="button" class="btn ghost small"
+                  onclick="this.previousElementSibling.click()">{{ '更换' if path else '上传' }}</button>
         </form>
       </div>
     </div>
