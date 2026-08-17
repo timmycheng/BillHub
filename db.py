@@ -102,6 +102,11 @@ def init_db():
         must_change_password INTEGER DEFAULT 0, -- 批量导入初始密码用户：首次登录强制改密
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,                  -- 配置项名（如 ldap_uri / ocr_rules）
+        value TEXT                             -- 配置值（JSON 或字符串）
+    );
     ''')
     conn.commit()
     conn.close()
@@ -647,6 +652,37 @@ class UserHasContractsError(Exception):
     def __init__(self, n):
         self.n = n
         super().__init__(f'该用户名下还有 {n} 个合同')
+
+
+# ============ 系统设置（键值持久化，页面配置覆盖环境变量默认值）============
+def get_settings():
+    conn = get_conn()
+    rows = conn.execute('SELECT key, value FROM settings').fetchall()
+    conn.close()
+    return {r['key']: r['value'] for r in rows}
+
+
+def get_setting(key, default=None):
+    return get_settings().get(key, default)
+
+
+def set_settings(items):
+    """批量写入配置项（upsert）。items = {key: value}。"""
+    conn = get_conn()
+    for k, v in items.items():
+        conn.execute(
+            'INSERT INTO settings (key, value) VALUES (?,?) '
+            'ON CONFLICT(key) DO UPDATE SET value=excluded.value', (k, v))
+    conn.commit()
+    conn.close()
+
+
+def delete_settings(keys):
+    conn = get_conn()
+    for k in keys:
+        conn.execute('DELETE FROM settings WHERE key=?', (k,))
+    conn.commit()
+    conn.close()
 
 
 def delete_user(user_id):
