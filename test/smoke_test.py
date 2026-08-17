@@ -153,6 +153,10 @@ r = c.get('/contracts/1/edit')
 check('GET /contracts/1/edit', r.status_code == 200 and '编辑合同' in html_of(r))
 r = c.get('/contracts?q=信息系统')
 check('contract search', r.status_code == 200 and '信息系统安全服务合同' in html_of(r))
+row_btns = html_of(r).count('class="row-btn"')
+check('合同列表操作栏样式统一（报销/详情/编辑均为 row-btn）',
+      row_btns == 3 and 'btn primary small" onclick="openReimburse' not in html_of(r)
+      and 'class="row-btn" onclick="openReimburse' in html_of(r))
 r = c.get('/contracts?q=不存在的合同xyz')
 check('contract search empty', '无匹配合同' in html_of(r))
 
