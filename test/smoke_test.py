@@ -458,6 +458,53 @@ r = c.post('/api/ocr/contract', data={'file': (io.BytesIO(b'\xd0\xcf\x11\xe0 fak
            content_type='multipart/form-data')
 check('合同 OCR：.doc 拒绝', r.status_code == 400 and 'doc' in html_of(r))
 
+# ============ OCR 规则可配置化 ============
+html = html_of(c.get('/admin/ocr-rules'))
+check('GET /admin/ocr-rules', 'OCR 规则' in html and '合同金额关键词' in html and '恢复出厂默认' in html)
+r = c.post('/admin/ocr-rules', data={
+    'amount_keywords': '自定义金额', 'start_date_keywords': '生效日期',
+    'end_date_keywords': '结束日期', 'payee_pattern': '([',
+    'bank_name_pattern': '', 'bank_account_pattern': '', 'plan_kw_map': '预付款=1',
+}, follow_redirects=True)
+check('非法正则被拒绝并提示', '正则不合法' in html_of(r))
+r = c.post('/admin/ocr-rules', data={
+    'amount_keywords': '自定义金额', 'start_date_keywords': '生效日期',
+    'end_date_keywords': '结束日期', 'payee_pattern': '',
+    'bank_name_pattern': '', 'bank_account_pattern': '', 'plan_kw_map': '预付款=1',
+}, follow_redirects=True)
+check('保存 OCR 规则', 'OCR 规则已保存' in html_of(r) and '立即生效' in html_of(r))
+
+
+def make_custom_docx():
+    xml = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+           '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+           '<w:body>'
+           '<w:p><w:r><w:t>合同金额：¥1000</w:t></w:r></w:p>'
+           '<w:p><w:r><w:t>自定义金额：¥99999</w:t></w:r></w:p>'
+           '<w:p><w:r><w:t>收款单位：自定义收款公司</w:t></w:r></w:p>'
+           '</w:body></w:document>')
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr('word/document.xml', xml)
+    buf.seek(0)
+    return buf
+
+
+r = c.post('/api/ocr/contract', data={'file': (make_custom_docx(), '自定义合同.docx')},
+           content_type='multipart/form-data')
+j = r.get_json() or {}
+check('OCR 按自定义关键词提取金额（自定义金额优先于合同金额）',
+      r.status_code == 200 and j.get('ok') and j.get('total_amount') == '99999', repr(j)[:200])
+check('OCR 规则未覆盖字段仍按默认正则生效', j.get('payee') == '自定义收款公司', repr(j)[:200])
+
+r = c.post('/admin/ocr-rules/reset', follow_redirects=True)
+check('重置恢复出厂默认规则', '出厂默认' in html_of(r))
+r = c.post('/api/ocr/contract', data={'file': (make_docx(), '合同.docx')},
+           content_type='multipart/form-data')
+j = r.get_json() or {}
+check('重置后按出厂规则提取（合同金额）', r.status_code == 200 and j.get('ok')
+      and j.get('total_amount') == '48000', repr(j)[:200])
+
 # 3) 真实示例合同（templates 下样例文件被 .gitignore，存在则跑）
 import glob  # noqa: E402
 pdfs = glob.glob(os.path.join(BASE, 'templates', '*.pdf'))

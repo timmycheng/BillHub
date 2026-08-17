@@ -1,12 +1,14 @@
 """BillHub OCR API：POST /api/ocr 上传图片/PDF，返回识别 JSON。
 复用 ocr.InvoiceOCR（桌面版同款）。模型加载较重，用模块级单例复用。"""
+import json
 import os
 import tempfile
 
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
 
-from ocr import InvoiceOCR, ContractOCR
+import db
+from ocr import InvoiceOCR, ContractOCR, merge_contract_rules
 
 bp = Blueprint('ocr_api', __name__)
 
@@ -31,6 +33,18 @@ def _get_contract_ocr():
         # 无模型环境（如 CI）也能正确校验/解析；图片 PDF 首次需要时才加载（仍共用单例）
         _CONTRACT_OCR = ContractOCR(ocr_factory=_get_ocr)
     return _CONTRACT_OCR
+
+
+def _contract_rule_overrides():
+    """读取数据库自定义 OCR 规则（管理员在「OCR 规则」页维护），非法内容回退出厂默认。"""
+    raw = db.get_setting('ocr_rules')
+    if not raw:
+        return None
+    try:
+        overrides = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    return overrides if isinstance(overrides, dict) else None
 
 
 @bp.route('/api/ocr', methods=['POST'])
@@ -77,7 +91,8 @@ def contract_ocr():
     f.save(tmp.name)
     tmp.close()
     try:
-        data = _get_contract_ocr().extract(tmp.name)
+        data = _get_contract_ocr().extract(tmp.name,
+                                           rules=merge_contract_rules(_contract_rule_overrides()))
     except ValueError as e:
         return jsonify({'ok': False, 'error': str(e)}), 400
     except Exception as e:
