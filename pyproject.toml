@@ -1,6 +1,6 @@
 [project]
 name = "billhub"
-version = "2.0.3"
+version = "2.1.0"
 description = "BillHub —— 合同/发票/审批/报销一体化处理平台（Web 版 Flask，内网多人共享）"
 readme = "README.md"
 requires-python = ">=3.11"
