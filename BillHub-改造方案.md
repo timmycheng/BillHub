@@ -51,7 +51,7 @@
 
 ### 1.3 敏感信息脱敏（公开必须）
 
-- `内部收件邮箱`（README ×2、workflow `MAIL_TO` ×1）→ 占位符 `your-recipient@example.com`
+- 原内部收件邮箱（README ×2、workflow `MAIL_TO` ×1）→ 占位符 `your-recipient@example.com`
 - README 增加说明："收件人地址自行在 workflow `MAIL_TO` 配置"
 
 ### 1.4 需单独在 GitHub 操作

@@ -16,7 +16,8 @@ invoices/
 uploads/
 data/
 models/
-/templates/
+# 示例合同不入库（审批表模板随仓库入库）
+templates/示例合同*
 
 # Generated report files
 合同清单_*.xlsx

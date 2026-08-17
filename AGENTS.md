@@ -5,7 +5,7 @@
 - BillHub：合同 / 发票 / 审批 / 报销一体化处理平台，自 2.0 起完全 Web 化（Flask + Jinja2 + HTMX），桌面版（PyQt6）已下线
 - 入口 `run_web.py`；应用工厂 `web/app.py`；蓝图 `web/routes/`；模板 `web/templates/`；静态 `web/static/`
 - 数据层 `db.py`（SQLite，WAL）；新增列用 `_NEW_COLUMNS` 增量迁移，必须兼容旧库；共享逻辑 `utils.py` / `ocr.py` / `template_engine.py` / `contract_io.py`
-- 本地审批表模板 `templates/*.xlsx` 与示例合同不入库（.gitignore 已忽略）
+- 审批表模板 `templates/*.xlsx` 随仓库入库（Docker 镜像构建依赖）；示例合同不入库（.gitignore 已忽略）
 
 ## 变更日志规则（Keep a Changelog，强制）
 
