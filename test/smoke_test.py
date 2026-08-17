@@ -152,6 +152,11 @@ check('detail shows start/end date', '2026-01-01' in txt and '2026-12-31' in txt
 
 r = c.get('/contracts/1')
 check('GET /contracts/1', r.status_code == 200)
+detail_html = html_of(r)
+check('合同附件上传：隐藏原生文件框，按钮触发选择',
+      'name="file" accept=".doc,.docx" required style="display:none"' in detail_html
+      and 'onclick="this.previousElementSibling.click()"' in detail_html
+      and 'type="submit" class="btn ghost small"' not in detail_html)
 r = c.get('/contracts/1/edit')
 check('GET /contracts/1/edit', r.status_code == 200 and '编辑合同' in html_of(r))
 r = c.get('/contracts?q=信息系统')
@@ -188,6 +193,10 @@ check('delete docx', '已删除电子稿' in html_of(r))
 r = c.get('/payments/form/1')
 check('GET /payments/form/1', r.status_code == 200 and '填报报销' in html_of(r))
 check('报销表单提示留空自动生成介绍', '留空则自动生成介绍' in html_of(r))
+form_html = html_of(r)
+check('报销弹窗相关文件改为拖拽上传框',
+      'id="files-zone"' in form_html and '未选择文件' in form_html
+      and 'id="files-input" name="files" multiple style="display:none"' in form_html)
 
 TEMPLATE = os.environ.get('BILLHUB_TEMPLATE') or os.path.join(BASE, 'templates', '审批表模板2026.xlsx')
 if os.path.exists(TEMPLATE):

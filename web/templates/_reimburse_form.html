@@ -42,7 +42,12 @@
     <textarea name="remark" rows="2"></textarea></label>
 
   <label class="field"><span>相关文件（可选，支持多选）</span>
-    <input type="file" name="files" multiple></label>
+    <div id="files-zone" class="drop-zone compact">
+      📎 拖拽相关文件到此处，或点击选择（支持多选）<br>
+      <span class="small muted" id="files-list">未选择文件</span>
+    </div>
+    <input type="file" id="files-input" name="files" multiple style="display:none">
+  </label>
 
   <div class="pay-actions">
     <button type="submit" class="btn primary">生成报销单</button>
@@ -92,5 +97,26 @@
       })
       .catch(function () { status.textContent = '❌ OCR 请求失败，请手动填写'; zone.innerHTML = defaultZoneHtml; });
   }
+})();
+(function () {
+  var fz = document.getElementById('files-zone');
+  var fi = document.getElementById('files-input');
+  var fl = document.getElementById('files-list');
+  var form = document.getElementById('pay-form');
+  if (!fz || !fi || !fl || !form) return;
+  function showList() {
+    var names = [];
+    for (var i = 0; i < fi.files.length; i++) names.push(fi.files[i].name);
+    fl.textContent = names.length ? '已选 ' + names.length + ' 个：' + names.join('、') : '未选择文件';
+  }
+  fz.addEventListener('click', function () { fi.click(); });
+  fz.addEventListener('dragover', function (e) { e.preventDefault(); fz.classList.add('drag'); });
+  fz.addEventListener('dragleave', function () { fz.classList.remove('drag'); });
+  fz.addEventListener('drop', function (e) {
+    e.preventDefault(); fz.classList.remove('drag');
+    if (e.dataTransfer.files.length) { fi.files = e.dataTransfer.files; showList(); }
+  });
+  fi.addEventListener('change', showList);
+  form.addEventListener('reset', function () { setTimeout(showList, 0); });
 })();
 </script>
