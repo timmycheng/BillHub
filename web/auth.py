@@ -105,8 +105,10 @@ def login():
         ad_info = None
         if not ok:
             from flask import current_app
+            from web.config import effective_ldap_config
             from web.ldap_auth import ldap_authenticate
-            ad_info = ldap_authenticate(username, password, current_app.config)
+            ad_info = ldap_authenticate(username, password,
+                                        effective_ldap_config(current_app))
             if ad_info:
                 if user_row is None:
                     # AD 首次登录自动建档（本地无密码，走 AD 通道）
