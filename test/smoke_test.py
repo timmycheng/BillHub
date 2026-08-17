@@ -73,6 +73,9 @@ html = html_of(r)
 check('GET /changelog', r.status_code == 200 and '更新说明' in html)
 check('changelog 页面内容与 CHANGELOG 一致',
       f'[{APP_VER}]' in html and 'Unreleased' in html and '变更' in html)
+check('changelog 不展示开发者说明（Keep a Changelog 等）',
+      'Keep a Changelog' not in html and '语义化版本' not in html and '日常改动请顺手' not in html)
+check('changelog 展示面向用户的导语', '各版本变更记录，最新改动显示在最上方' in html)
 
 # ============ 用户管理（2.1：弹窗化 + 密码强度）============
 html = html_of(c.get('/admin/users'))
