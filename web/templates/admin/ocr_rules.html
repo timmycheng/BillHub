@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}OCR 规则{% endblock %}
+{% block crumb %}<span>系统管理</span><span class="sep">/</span><strong>OCR 规则</strong>{% endblock %}
+{% block body %}
+<div class="page-head">
+  <div>
+    <h1>OCR 识别规则</h1>
+    <p>合同 OCR 识别的关键词与正则规则，保存后重新识别立即生效；留空表示使用出厂默认。</p>
+  </div>
+</div>
+
+<div class="panel">
+  <form method="post" action="{{ url_for('admin.ocr_rules_save') }}">
+    <div class="form-grid">
+      <label class="field wide"><span>合同金额关键词（每行一个）</span>
+        <textarea name="amount_keywords" rows="6"
+          placeholder="{{ defaults.amount_keywords|join('\n') }}">{{ rules.get('amount_keywords', [])|join('\n') }}</textarea></label>
+
+      <label class="field"><span>生效日期关键词（每行一个）</span>
+        <textarea name="start_date_keywords" rows="6"
+          placeholder="{{ defaults.start_date_keywords|join('\n') }}">{{ rules.get('start_date_keywords', [])|join('\n') }}</textarea></label>
+      <label class="field"><span>结束日期关键词（每行一个）</span>
+        <textarea name="end_date_keywords" rows="6"
+          placeholder="{{ defaults.end_date_keywords|join('\n') }}">{{ rules.get('end_date_keywords', [])|join('\n') }}</textarea></label>
+
+      <label class="field wide"><span>收款单位匹配正则</span>
+        <input type="text" name="payee_pattern" value="{{ rules.get('payee_pattern', '') or '' }}"
+               placeholder="{{ defaults.payee_pattern }}"></label>
+      <label class="field wide"><span>开户银行匹配正则</span>
+        <input type="text" name="bank_name_pattern" value="{{ rules.get('bank_name_pattern', '') or '' }}"
+               placeholder="{{ defaults.bank_name_pattern }}"></label>
+      <label class="field wide"><span>银行账号匹配正则</span>
+        <input type="text" name="bank_account_pattern" value="{{ rules.get('bank_account_pattern', '') or '' }}"
+               placeholder="{{ defaults.bank_account_pattern }}"></label>
+
+      <label class="field wide"><span>付款计划关键词映射（每行「关键词=期数」）</span>
+        <textarea name="plan_kw_map" rows="6"
+          placeholder="{% for k, v in defaults.plan_kw_map.items() %}{{ k }}={{ v }}
+{% endfor %}">{% for k, v in rules.get('plan_kw_map', {}).items() %}{{ k }}={{ v }}
+{% endfor %}</textarea></label>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn primary">保存规则</button>
+      <button type="submit" class="btn ghost" form="ocr-reset-form"
+              onclick="return confirm('确定恢复出厂默认规则？')">恢复出厂默认</button>
+    </div>
+  </form>
+  <form id="ocr-reset-form" method="post" action="{{ url_for('admin.ocr_rules_reset') }}"></form>
+</div>
+{% endblock %}

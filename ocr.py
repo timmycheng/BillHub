@@ -145,6 +145,46 @@ def _find_date_after(text, keywords):
     return None
 
 
+# ============ 合同识别规则（可配置：数据库覆盖出厂默认）============
+DEFAULT_CONTRACT_RULES = {
+    'amount_keywords': ['合同金额', '合同总价', '合同总额', '总金额', '合同价款', '总价款',
+                        '费用金额', '服务费', '服务费用', '含税', '中标价', '暂定总价'],
+    'start_date_keywords': ['生效日期', '生效时间', '起始日期', '开始日期',
+                            '合同起始', '生效期', '实施日期', '进场日期'],
+    'end_date_keywords': ['结束日期', '结束时间', '终止日期', '到期日期',
+                          '截止日期', '有效期至', '合同届满', '履约期限',
+                          '合同期限', '服务期限', '完工日期'],
+    'payee_pattern': r'(?:收款单位|收款方|账户名称|户名)\s*[:：]?\s*([^\n,，;；。]{2,40})',
+    'bank_name_pattern': r'(?:开户银行|开户行|开户银行名称|银行名称)\s*[:：]?\s*([^\n,，;；。]{2,40})',
+    'bank_account_pattern': r'(?:银行账号|开户账号|账号|账户号?|帐号)\s*[:：]?\s*([\d\s\-]{8,40})',
+    'plan_kw_map': {'预付款': 1, '首期': 1, '首付款': 1, '定金': 1, '签订': 1,
+                    '进度款': 2, '中期款': 2,
+                    '验收款': 3, '尾款': 9, '余款': 9, '质保金': 10, '保修金': 10},
+}
+
+# 需要保证是合法正则的字段（保存/加载时校验，非法回退出厂值）
+CONTRACT_REGEX_RULE_KEYS = ('payee_pattern', 'bank_name_pattern', 'bank_account_pattern')
+
+
+def merge_contract_rules(overrides):
+    """出厂默认规则 + 用户覆盖（overrides 为 dict 或 None）。
+    正则字段非法时回退默认值；其余字段直接覆盖。"""
+    rules = {k: (list(v) if isinstance(v, list) else v)
+             for k, v in DEFAULT_CONTRACT_RULES.items()}
+    if not overrides:
+        return rules
+    for k, v in overrides.items():
+        if k in CONTRACT_REGEX_RULE_KEYS:
+            if not v:
+                continue
+            try:
+                re.compile(v)
+            except re.error:
+                continue
+        rules[k] = v
+    return rules
+
+
 class ContractOCR:
     """从合同文件（doc/docx/PDF/图片）提取结构化信息。
     docx 直接抽文本；PDF 优先用文本层，无文本则渲染后 OCR；.doc 二进制不支持。"""
@@ -163,9 +203,10 @@ class ContractOCR:
                 self._invoice_ocr = InvoiceOCR()
         return self._invoice_ocr
 
-    def extract(self, path):
+    def extract(self, path, rules=None):
         """返回 {customer_name, total_amount, payee, bank_name, bank_account,
-        start_date, end_date, plan:[{seq, ratio, amount}]}。"""
+        start_date, end_date, plan:[{seq, ratio, amount}]}。
+        rules: 可选，merge_contract_rules 输出（数据库自定义规则覆盖出厂默认）。"""
         ext = os.path.splitext(path)[1].lower()
         if ext == '.docx':
             lines = self._docx_lines(path)
@@ -179,7 +220,7 @@ class ContractOCR:
             raise ValueError(f'不支持的合同文件类型：{ext}')
         if not lines:
             raise ValueError('未识别到任何文本，请改用清晰可复制的电子稿')
-        return self._parse(lines)
+        return self._parse(lines, rules)
 
     # ---- 文本提取 ----
     def _docx_lines(self, path):
@@ -235,7 +276,8 @@ class ContractOCR:
         return [line[1] for line in result] if result else []
 
     # ---- 字段解析 ----
-    def _parse(self, lines):
+    def _parse(self, lines, rules=None):
+        rules = merge_contract_rules(rules)
         norm_lines = [_norm(l) for l in lines]
         full = _norm(' '.join(lines))
         data = {
@@ -276,8 +318,7 @@ class ContractOCR:
         data['customer_name'] = customer_name
 
         # 合同金额：优先关键词窗口内的 ¥ 金额；否则取全文最大的 ¥ 金额（≥100，过滤税率等噪声）
-        amount_keywords = ('合同金额', '合同总价', '合同总额', '总金额', '合同价款', '总价款',
-                           '费用金额', '服务费', '服务费用', '含税', '中标价', '暂定总价')
+        amount_keywords = rules['amount_keywords']
         picked = ''
         for kw in amount_keywords:
             idx = full.find(kw)
@@ -296,18 +337,18 @@ class ContractOCR:
         if picked:
             data['total_amount'] = picked.replace(',', '')
 
-        # 收款单位 / 开户银行 / 银行账号：逐行就近匹配
+        # 收款单位 / 开户银行 / 银行账号：逐行就近匹配（正则可配置）
         for ln in norm_lines:
             if not data['payee']:
-                m = re.search(r'(?:收款单位|收款方|账户名称|户名)\s*[:：]?\s*([^\n,，;；。]{2,40})', ln)
+                m = re.search(rules['payee_pattern'], ln)
                 if m:
                     data['payee'] = m.group(1).strip(' ：:()（）')
             if not data['bank_name']:
-                m = re.search(r'(?:开户银行|开户行|开户银行名称|银行名称)\s*[:：]?\s*([^\n,，;；。]{2,40})', ln)
+                m = re.search(rules['bank_name_pattern'], ln)
                 if m:
                     data['bank_name'] = m.group(1).strip(' ：:()（）')
             if not data['bank_account']:
-                m = re.search(r'(?:银行账号|开户账号|账号|账户号?|帐号)\s*[:：]?\s*([\d\s\-]{8,40})', ln)
+                m = re.search(rules['bank_account_pattern'], ln)
                 if m:
                     acc = re.sub(r'[\s\-]', '', m.group(1))
                     if 6 <= len(acc) <= 40 and acc.isdigit():
@@ -324,12 +365,9 @@ class ContractOCR:
                 data['start_date'] = self._parse_date_text(rng2.group(1))
                 data['end_date'] = self._parse_date_text(rng2.group(2))
         if not data['start_date']:
-            data['start_date'] = _find_date_after(full, ['生效日期', '生效时间', '起始日期', '开始日期',
-                                                         '合同起始', '生效期', '实施日期', '进场日期']) or ''
+            data['start_date'] = _find_date_after(full, rules['start_date_keywords']) or ''
         if not data['end_date']:
-            data['end_date'] = _find_date_after(full, ['结束日期', '结束时间', '终止日期', '到期日期',
-                                                       '截止日期', '有效期至', '合同届满', '履约期限',
-                                                       '合同期限', '服务期限', '完工日期']) or ''
+            data['end_date'] = _find_date_after(full, rules['end_date_keywords']) or ''
 
         # 付款计划：逐行匹配 第X期/首期/预付款/进度款/尾款/质保金/签订后/余款 + 附近比例或金额
         plan = []
@@ -343,10 +381,7 @@ class ContractOCR:
             if m:
                 seq = self._cn_or_int(m.group(1))
             else:
-                kw_map = {'预付款': 1, '首期': 1, '首付款': 1, '定金': 1, '签订': 1,
-                          '进度款': 2, '中期款': 2,
-                          '验收款': 3, '尾款': 9, '余款': 9, '质保金': 10, '保修金': 10}
-                for k, v in kw_map.items():
+                for k, v in rules['plan_kw_map'].items():
                     if k in ln:
                         seq = v
                         break

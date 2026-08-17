@@ -1,6 +1,8 @@
-"""BillHub 管理员蓝图：用户管理（增删改/重置密码/批量导入）+ 数据库备份。仅管理员可访问。"""
+"""BillHub 管理员蓝图：用户管理（增删改/重置密码/批量导入）+ OCR 规则 + 数据库备份。仅管理员可访问。"""
 import io
+import json
 import os
+import re
 import sqlite3
 import tempfile
 
@@ -10,6 +12,7 @@ from flask import (Blueprint, current_app, flash, redirect, render_template, req
 from flask_login import current_user
 
 import db
+import ocr
 from web.auth import admin_required, hash_password, password_error
 
 bp = Blueprint('admin', __name__)
@@ -210,3 +213,65 @@ def users_import_template():
     buf.seek(0)
     return send_file(buf, as_attachment=True, download_name='用户导入模板.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+# ============ OCR 规则配置（可配置化，保存后立即生效）============
+def _lines(value):
+    return [ln.strip() for ln in (value or '').splitlines() if ln.strip()]
+
+
+@bp.route('/admin/ocr-rules')
+@admin_required
+def ocr_rules():
+    saved = {}
+    raw = db.get_setting('ocr_rules')
+    if raw:
+        try:
+            saved = json.loads(raw) or {}
+        except ValueError:
+            saved = {}
+    return render_template('admin/ocr_rules.html', rules=saved,
+                           defaults=ocr.DEFAULT_CONTRACT_RULES)
+
+
+@bp.route('/admin/ocr-rules', methods=['POST'])
+@admin_required
+def ocr_rules_save():
+    overrides = {
+        'amount_keywords': _lines(request.form.get('amount_keywords')),
+        'start_date_keywords': _lines(request.form.get('start_date_keywords')),
+        'end_date_keywords': _lines(request.form.get('end_date_keywords')),
+        'payee_pattern': request.form.get('payee_pattern', '').strip(),
+        'bank_name_pattern': request.form.get('bank_name_pattern', '').strip(),
+        'bank_account_pattern': request.form.get('bank_account_pattern', '').strip(),
+        'plan_kw_map': {},
+    }
+    for k in ('payee_pattern', 'bank_name_pattern', 'bank_account_pattern'):
+        p = overrides[k]
+        if p:
+            try:
+                re.compile(p)
+            except re.error as e:
+                flash(f'正则不合法（{k}）：{e}', 'danger')
+                return redirect(url_for('admin.ocr_rules'))
+    for ln in _lines(request.form.get('plan_kw_map')):
+        if '=' in ln:
+            k, _, v = ln.partition('=')
+            try:
+                overrides['plan_kw_map'][k.strip()] = int(v.strip())
+            except ValueError:
+                flash(f'付款计划映射格式错误（应为 关键词=期数）：{ln}', 'danger')
+                return redirect(url_for('admin.ocr_rules'))
+    # 空值视为「使用出厂默认」
+    overrides = {k: v for k, v in overrides.items() if v}
+    db.set_settings({'ocr_rules': json.dumps(overrides, ensure_ascii=False)})
+    flash('OCR 规则已保存，重新识别立即生效', 'success')
+    return redirect(url_for('admin.ocr_rules'))
+
+
+@bp.route('/admin/ocr-rules/reset', methods=['POST'])
+@admin_required
+def ocr_rules_reset():
+    db.delete_settings(['ocr_rules'])
+    flash('已恢复出厂默认 OCR 规则', 'success')
+    return redirect(url_for('admin.ocr_rules'))
