@@ -10,6 +10,7 @@
 """
 import io
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -74,8 +75,13 @@ check('左下角版本号与实际版本一致', f'BillHub v{APP_VER}' in html a
 r = c.get('/changelog')
 html = html_of(r)
 check('GET /changelog', r.status_code == 200 and '更新说明' in html)
+with open(os.path.join(BASE, 'CHANGELOG.md'), encoding='utf-8') as _fh:
+    _ch_text = _fh.read()
+_um = re.search(r'^## \[Unreleased\][ \t]*\n(.*?)(?=\n^## \[|\Z)', _ch_text, re.S | re.M)
+_unreleased_has_content = bool(_um and _um.group(1).strip())
 check('changelog 页面内容与 CHANGELOG 一致',
-      f'[{APP_VER}]' in html and 'Unreleased' in html and '变更' in html)
+      f'[{APP_VER}]' in html and '变更' in html
+      and ('<h2>[Unreleased]</h2>' in html) == _unreleased_has_content)
 check('changelog 不展示开发者说明（Keep a Changelog 等）',
       'Keep a Changelog' not in html and '语义化版本' not in html and '日常改动请顺手' not in html)
 check('changelog 展示面向用户的导语', '各版本变更记录，最新改动显示在最上方' in html)
@@ -625,6 +631,10 @@ check('发版工作流 Docker Hub 双标签推送（latest + 版本，失败仅�
       'billhub-web:latest' in wf and 'docker/login-action' in wf
       and 'DOCKERHUB_NAMESPACE' in wf and 'continue-on-error' in wf
       and '不阻断发版' in wf)
+check('发版 CI 省略空 [Unreleased] 小节', 'drop_empty_unreleased' in wf)
+with open(os.path.join(BASE, '.github', 'workflows', 'changelog-bot.yml'), encoding='utf-8') as fh:
+    bot_wf = fh.read()
+check('changelog-bot 缺失 [Unreleased] 时自动补建', '补建 [Unreleased]' in bot_wf)
 
 shutil.rmtree(TMP, ignore_errors=True)
 print()
