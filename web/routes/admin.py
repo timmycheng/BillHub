@@ -1,6 +1,7 @@
 """BillHub 管理员蓝图：用户管理（增删改/重置密码/批量导入）+ 数据库备份。仅管理员可访问。"""
 import io
 import os
+import sqlite3
 import tempfile
 
 import openpyxl
@@ -83,7 +84,15 @@ def users_delete(uid):
     if user['is_admin'] and _admin_count() <= 1:
         flash('不能删除最后一位管理员', 'warning')
         return redirect(url_for('admin.users'))
-    db.delete_user(uid)
+    try:
+        db.delete_user(uid)
+    except db.UserHasContractsError as e:
+        flash(f'不能删除用户「{user["username"]}」：其名下还有 {e.n} 个合同，'
+              f'请先在合同中转移经办人', 'warning')
+        return redirect(url_for('admin.users'))
+    except sqlite3.IntegrityError:
+        flash(f'删除失败：用户「{user["username"]}」存在关联数据', 'danger')
+        return redirect(url_for('admin.users'))
     flash(f'已删除用户：{user["username"]}', 'success')
     return redirect(url_for('admin.users'))
 
