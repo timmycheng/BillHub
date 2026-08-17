@@ -13,6 +13,7 @@ from flask_login import current_user
 
 import db
 import ocr
+from web.audit_log import log_action
 from web.auth import admin_required, hash_password, password_error
 
 bp = Blueprint('admin', __name__)
@@ -43,6 +44,7 @@ def users_create():
         flash(f'用户名「{username}」已存在', 'danger')
     else:
         flash(f'已创建用户：{username}', 'success')
+        log_action('创建用户', target=username)
     return redirect(url_for('admin.users'))
 
 
@@ -68,9 +70,11 @@ def users_edit(uid):
         db.update_user(uid, display_name=display_name, is_admin=is_admin,
                        password_hash=hash_password(password))
         flash(f'已更新用户「{user["username"]}」并重置密码', 'success')
+        log_action('编辑用户', target=user['username'], detail='重置密码')
     else:
         db.update_user(uid, display_name=display_name, is_admin=is_admin)
         flash(f'已更新用户：{user["username"]}', 'success')
+        log_action('编辑用户', target=user['username'])
     return redirect(url_for('admin.users'))
 
 
@@ -97,6 +101,7 @@ def users_delete(uid):
         flash(f'删除失败：用户「{user["username"]}」存在关联数据', 'danger')
         return redirect(url_for('admin.users'))
     flash(f'已删除用户：{user["username"]}', 'success')
+    log_action('删除用户', target=user['username'])
     return redirect(url_for('admin.users'))
 
 
@@ -109,6 +114,7 @@ def backup():
     except Exception as e:
         flash(f'备份失败：{e}', 'danger')
         return redirect(url_for('admin.users'))
+    log_action('备份数据库')
     return send_file(path, as_attachment=True,
                      download_name=os.path.basename(path), mimetype='application/x-sqlite3')
 
@@ -195,6 +201,7 @@ def users_import():
     flash(msg, 'success' if created else 'warning')
     if created:
         flash(f'导入用户初始密码为默认密码（首登强制修改），请妥善分发给 {len(created)} 位新用户', 'info')
+    log_action('批量导入用户', detail=msg)
     return redirect(url_for('admin.users'))
 
 
@@ -266,6 +273,7 @@ def ocr_rules_save():
     overrides = {k: v for k, v in overrides.items() if v}
     db.set_settings({'ocr_rules': json.dumps(overrides, ensure_ascii=False)})
     flash('OCR 规则已保存，重新识别立即生效', 'success')
+    log_action('保存 OCR 规则')
     return redirect(url_for('admin.ocr_rules'))
 
 
@@ -274,6 +282,7 @@ def ocr_rules_save():
 def ocr_rules_reset():
     db.delete_settings(['ocr_rules'])
     flash('已恢复出厂默认 OCR 规则', 'success')
+    log_action('恢复默认 OCR 规则')
     return redirect(url_for('admin.ocr_rules'))
 
 
@@ -301,6 +310,7 @@ def ldap_config_save():
         items['ldap_bind_password'] = bind_pwd
     db.set_settings(items)
     flash('LDAP 配置已保存，立即生效', 'success')
+    log_action('保存 LDAP 配置')
     return redirect(url_for('admin.ldap_config'))
 
 
@@ -327,3 +337,34 @@ def ldap_config_test():
                               request.form.get('test_username', '').strip(),
                               request.form.get('test_password', ''))
     return jsonify({'ok': ok, 'message': msg})
+
+
+# ============ 审计日志（仅管理员，只读）============
+AUDIT_PER_PAGE = 20
+
+
+@bp.route('/admin/audit-logs')
+@admin_required
+def audit_logs():
+    username = request.args.get('username', '').strip()
+    action = request.args.get('action', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+    page = max(1, request.args.get('page', 1, type=int))
+    rows, total = db.list_audit_logs(page=page, per_page=AUDIT_PER_PAGE,
+                                     username=username or None,
+                                     action=action or None,
+                                     start_date=start_date or None,
+                                     end_date=end_date or None)
+    total_pages = max(1, (total + AUDIT_PER_PAGE - 1) // AUDIT_PER_PAGE)
+    page = min(page, total_pages)
+    rows, _ = db.list_audit_logs(page=page, per_page=AUDIT_PER_PAGE,
+                                 username=username or None,
+                                 action=action or None,
+                                 start_date=start_date or None,
+                                 end_date=end_date or None)
+    return render_template('admin/audit_logs.html', rows=rows, total=total,
+                           page=page, per_page=AUDIT_PER_PAGE, total_pages=total_pages,
+                           username=username, action=action,
+                           start_date=start_date, end_date=end_date,
+                           actions=db.list_audit_actions())

@@ -12,6 +12,7 @@ from flask_login import current_user, login_required
 import contract_io
 import db
 from utils import contract_statuses
+from web.audit_log import log_action
 from web.auth import admin_required, can_access_contract
 
 bp = Blueprint('contracts', __name__)
@@ -193,6 +194,7 @@ def new():
             return _render_form(None, request.form)
         db.save_payment_plan(cid, _parse_plan_rows(request.form))
         flash(f'已新增合同：{data["contract_name"]}', 'success')
+        log_action('新建合同', target=f"{data['contract_no']} {data['contract_name']}".strip())
         return redirect(url_for('contracts.detail', cid=cid))
     return _render_form(None, None)
 
@@ -220,6 +222,7 @@ def edit(cid):
         db.update_contract(cid, owner_id=owner_id, **data)
         db.save_payment_plan(cid, _parse_plan_rows(request.form))
         flash('合同已更新', 'success')
+        log_action('编辑合同', target=f"{c['contract_no']} {c['contract_name']}".strip())
         return redirect(url_for('contracts.detail', cid=cid))
     return _render_form(c, None)
 
@@ -234,6 +237,7 @@ def delete(cid):
     name = c['contract_name']
     db.delete_contract(cid)
     flash(f'已删除合同：{name}', 'success')
+    log_action('删除合同', target=f"{c['contract_no']} {name}".strip())
     return redirect(url_for('contracts.list'))
 
 
@@ -276,6 +280,8 @@ def upload_file(cid):
     f.save(dest)
     db.set_contract_file(cid, col, dest)
     flash(f'{label}已上传', 'success')
+    log_action(f'上传合同{label}', target=f"{c['contract_no']} {c['contract_name']}".strip(),
+               detail=os.path.basename(dest))
     return redirect(url_for('contracts.detail', cid=cid))
 
 
@@ -313,6 +319,7 @@ def delete_file(cid, kind):
             pass
     db.set_contract_file(cid, col, '')
     flash(f'已删除{label}', 'success')
+    log_action(f'删除合同{label}', target=f"{c['contract_no']} {c['contract_name']}".strip())
     return redirect(url_for('contracts.detail', cid=cid))
 
 
@@ -328,6 +335,7 @@ def export():
         os.unlink(tmp.name)
         flash(f'导出失败：{e}', 'danger')
         return redirect(url_for('contracts.list'))
+    log_action('导出合同清单', detail=f'{n} 条')
     return send_file(tmp.name, as_attachment=True, download_name='合同清单.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
@@ -356,6 +364,7 @@ def import_file():
         detail_str = '; '.join(f'第{e["row"]}行：{e["reason"]}' for e in result['errors'][:8])
         msg += '。明细：' + detail_str
     flash(msg, 'success' if result['added'] else 'warning')
+    log_action('导入合同清单', detail=msg)
     return redirect(url_for('contracts.list'))
 
 

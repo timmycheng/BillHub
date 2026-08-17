@@ -10,6 +10,7 @@ from flask_login import current_user, login_required
 import db
 import template_engine
 from utils import auto_main_content, build_report_context, safe_dirname
+from web.audit_log import log_action
 from web.auth import can_access_contract
 
 bp = Blueprint('payments', __name__)
@@ -144,6 +145,8 @@ def create():
             pass
 
     flash('✅ 审批表已生成并保存记录！', 'success')
+    log_action('填报报销', target=f'BX-{new_pid:05d} {c["contract_name"]}',
+               detail=f'第{stage} ¥{amount:,.2f}' if stage else f'¥{amount:,.2f}')
     return redirect(url_for('contracts.detail', cid=cid, preview=new_pid))
 
 
@@ -157,6 +160,7 @@ def delete(pid):
     _get_accessible_contract(rec['contract_id'])
     db.delete_payment(pid)
     flash('支付记录已删除（合同已付/剩余金额已重新计算）', 'success')
+    log_action('删除报销记录', target=f'BX-{pid:05d}')
     return redirect(url_for('contracts.detail', cid=rec['contract_id']))
 
 
@@ -177,11 +181,12 @@ def set_status(pid):
     else:
         db.set_payment_status(pid, to)
         flash(f'已更新报销状态：{to}', 'success')
+        log_action('报销状态流转', target=f'BX-{pid:05d}', detail=f'→ {to}')
     return redirect(request.referrer or url_for('payments.page'))
 
 
 # ============ 文件下载 ============
-def _send_payment_file(pid, key, download_name):
+def _send_payment_file(pid, key, download_name, action=None):
     rec = db.get_payment(pid)
     if not rec:
         abort(404)
@@ -190,13 +195,15 @@ def _send_payment_file(pid, key, download_name):
     if not path or not os.path.exists(path):
         flash('该记录没有可用的文件（可能已移动或删除）', 'warning')
         return redirect(url_for('contracts.detail', cid=rec['contract_id']))
+    if action:
+        log_action(action, target=f'BX-{pid:05d}', detail=download_name)
     return send_file(path, as_attachment=True, download_name=download_name)
 
 
 @bp.route('/files/report/<int:pid>')
 @login_required
 def download_report(pid):
-    return _send_payment_file(pid, 'report_file', f'审批表_{pid}.xlsx')
+    return _send_payment_file(pid, 'report_file', f'审批表_{pid}.xlsx', '下载审批表')
 
 
 @bp.route('/files/invoice/<int:pid>')
@@ -206,7 +213,7 @@ def download_invoice(pid):
     if not rec:
         abort(404)
     fname = os.path.basename(rec.get('invoice_file') or f'票据_{pid}')
-    return _send_payment_file(pid, 'invoice_file', fname)
+    return _send_payment_file(pid, 'invoice_file', fname, '下载发票票据')
 
 
 # ============ 报销相关附件（多文件）============
@@ -241,4 +248,6 @@ def delete_attachment(fid):
             pass
     db.delete_payment_file(fid)
     flash('已删除附件', 'success')
+    log_action('删除报销附件', target=f'BX-{rec["id"]:05d}',
+               detail=f.get('orig_name') or '')
     return redirect(url_for('contracts.detail', cid=cid))
