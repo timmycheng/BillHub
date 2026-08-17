@@ -53,3 +53,29 @@ class Config:
 
     # 批量导入用户的初始密码（须满足密码强度规则：8 位以上含大小写与特殊字符）
     IMPORT_DEFAULT_PASSWORD = os.environ.get('BILLHUB_IMPORT_PASSWORD', 'Abc12345!')
+
+
+# LDAP 配置项：环境变量（Config 默认值）→ 数据库 settings 覆盖（页面保存后立即生效）
+LDAP_KEYS = ('LDAP_ENABLED', 'LDAP_URI', 'LDAP_BASE_DN', 'LDAP_BIND_DN',
+             'LDAP_BIND_PASSWORD', 'LDAP_USER_DN_TEMPLATE', 'LDAP_SEARCH_FILTER')
+_LDAP_DB_KEYS = ('ldap_enabled', 'ldap_uri', 'ldap_base_dn', 'ldap_bind_dn',
+                 'ldap_bind_password', 'ldap_user_dn_template', 'ldap_search_filter')
+
+
+def effective_ldap_config(app):
+    """LDAP 配置合并：Config（环境变量默认值）为底，数据库 settings 覆盖。
+    布尔项 ldap_enabled 支持 1/true/yes/on；其余键空字符串不覆盖。"""
+    import db as _db
+    cfg = {k: app.config[k] for k in LDAP_KEYS}
+    try:
+        saved = _db.get_settings()
+    except Exception:
+        saved = {}
+    for db_key, cfg_key in zip(_LDAP_DB_KEYS, LDAP_KEYS):
+        if db_key not in saved or saved[db_key] == '':
+            continue
+        if cfg_key == 'LDAP_ENABLED':
+            cfg[cfg_key] = str(saved[db_key]).lower() in ('1', 'true', 'yes', 'on')
+        else:
+            cfg[cfg_key] = saved[db_key]
+    return cfg

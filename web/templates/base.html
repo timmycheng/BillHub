@@ -37,6 +37,8 @@
          href="{{ url_for('admin.users') }}"><span>◎</span> 用户管理</a>
       <a class="nav-item {{ 'active' if ep == 'admin.ocr_rules' }}"
          href="{{ url_for('admin.ocr_rules') }}"><span>✎</span> OCR 规则</a>
+      <a class="nav-item {{ 'active' if ep == 'admin.ldap_config' }}"
+         href="{{ url_for('admin.ldap_config') }}"><span>☁</span> LDAP 配置</a>
       {% endif %}
     </nav>
     <div class="sidebar-bottom">

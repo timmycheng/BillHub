@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}LDAP 配置{% endblock %}
+{% block crumb %}<span>系统管理</span><span class="sep">/</span><strong>LDAP 配置</strong>{% endblock %}
+{% block body %}
+<div class="page-head">
+  <div>
+    <h1>LDAP / AD 配置</h1>
+    <p>配置 LDAP/AD 认证通道。保存后立即生效，无需重启；环境变量（LDAP_*）作为默认值，页面配置优先生效。</p>
+  </div>
+</div>
+
+<div class="panel">
+  <form method="post" action="{{ url_for('admin.ldap_config_save') }}" id="ldap-form">
+    <div class="form-grid">
+      <label class="field wide"><span>启用 LDAP / AD 登录</span>
+        <label class="check"><input type="checkbox" name="ldap_enabled"
+               {{ 'checked' if cfg.get('ldap_enabled') == '1' }}> 启用后本地账号仍可登录，LDAP 作为第二通道</label></label>
+
+      <label class="field wide"><span>服务器地址（如 ldap://ad.example.com:389 或 ldaps://…）</span>
+        <input type="text" name="ldap_uri" value="{{ cfg.get('ldap_uri', '') }}"
+               placeholder="ldap://ad.example.com:389"></label>
+
+      <label class="field wide"><span>Base DN（如 dc=example,dc=com）</span>
+        <input type="text" name="ldap_base_dn" value="{{ cfg.get('ldap_base_dn', '') }}"
+               placeholder="dc=example,dc=com"></label>
+
+      <label class="field"><span>服务账号 DN（搜索用户用，可留空匿名）</span>
+        <input type="text" name="ldap_bind_dn" value="{{ cfg.get('ldap_bind_dn', '') }}"
+               placeholder="cn=svc,ou=users,dc=example,dc=com"></label>
+      <label class="field"><span>服务账号密码（留空保持原值）</span>
+        <input type="password" name="ldap_bind_password" autocomplete="new-password"></label>
+
+      <label class="field"><span>用户 DN 模板（直接拼 DN 验证，留空则用服务账号搜索）</span>
+        <input type="text" name="ldap_user_dn_template" value="{{ cfg.get('ldap_user_dn_template', '') }}"
+               placeholder="uid={user},ou=users,dc=example,dc=com"></label>
+      <label class="field"><span>搜索过滤（支持 {user} 占位，留空用默认）</span>
+        <input type="text" name="ldap_search_filter" value="{{ cfg.get('ldap_search_filter', '') }}"
+               placeholder="(|(sAMAccountName={user})(uid={user}))"></label>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn primary">保存配置</button>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><div><h3>连接测试</h3><span class="muted">使用上面表单中的当前参数（无需先保存）</span></div></div>
+  <div class="form-grid">
+    <label class="field"><span>测试账号（留空仅测服务器连通）</span>
+      <input type="text" id="test-username" autocomplete="off"></label>
+    <label class="field"><span>测试密码</span>
+      <input type="password" id="test-password" autocomplete="off"></label>
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn primary" id="ldap-test-btn">测试连接 / 认证</button>
+  </div>
+  <p id="ldap-test-result" class="muted pad-sm"></p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var btn = document.getElementById('ldap-test-btn');
+  var out = document.getElementById('ldap-test-result');
+  if (!btn || !out) return;
+  btn.addEventListener('click', function () {
+    var fd = new FormData(document.getElementById('ldap-form'));
+    fd.append('test_username', document.getElementById('test-username').value);
+    fd.append('test_password', document.getElementById('test-password').value);
+    out.textContent = '测试中，请稍候…';
+    fetch('{{ url_for("admin.ldap_config_test") }}', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        out.textContent = (data.ok ? '✅ ' : '❌ ') + data.message;
+      })
+      .catch(function () { out.textContent = '❌ 测试请求失败，请重试'; });
+  });
+})();
+</script>
+{% endblock %}
