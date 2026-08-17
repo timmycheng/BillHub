@@ -528,6 +528,32 @@ check('删除用户后其报销记录 user_id 置空保留',
       db.get_payment(_pid3) is not None and db.get_payment(_pid3)['user_id'] is None
       and db.get_user(_uid3) is None)
 
+# ============ LDAP 配置可视化 ============
+html = html_of(c.get('/admin/ldap'))
+check('GET /admin/ldap', 'LDAP' in html and '服务器地址' in html and '测试连接' in html)
+r = c.post('/admin/ldap', data={
+    'ldap_enabled': '', 'ldap_uri': 'ldap://ad.example.com:389',
+    'ldap_base_dn': 'dc=example,dc=com', 'ldap_bind_dn': '',
+    'ldap_bind_password': 'secret-bind', 'ldap_user_dn_template': '',
+    'ldap_search_filter': '',
+}, follow_redirects=True)
+check('保存 LDAP 配置', 'LDAP 配置已保存' in html_of(r) and '立即生效' in html_of(r))
+check('LDAP 配置入库（含服务账号密码）',
+      db.get_setting('ldap_uri') == 'ldap://ad.example.com:389'
+      and db.get_setting('ldap_bind_password') == 'secret-bind'
+      and db.get_setting('ldap_enabled') == '0')
+html = html_of(c.get('/admin/ldap'))
+check('配置页回显已保存值', 'ldap://ad.example.com:389' in html)
+r = c.post('/admin/ldap/test', data={
+    'ldap_enabled': '', 'ldap_uri': 'ldap://ad.example.com:389',
+    'ldap_base_dn': 'dc=example,dc=com', 'ldap_bind_dn': '',
+    'ldap_bind_password': 'secret-bind', 'test_username': '', 'test_password': '',
+})
+j = r.get_json() or {}
+check('LDAP 测试接口返回结构化结果', r.status_code == 200
+      and isinstance(j.get('ok'), bool) and isinstance(j.get('message'), str) and j['message'])
+check('未启用 LDAP 时本地账号登录不受影响', '仪表盘' in html_of(login()))
+
 # ============ 迁移兼容 ============
 old_db = os.path.join(TMP, 'old.db')
 conn = sqlite3.connect(old_db)

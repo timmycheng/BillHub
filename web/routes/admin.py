@@ -7,8 +7,8 @@ import sqlite3
 import tempfile
 
 import openpyxl
-from flask import (Blueprint, current_app, flash, redirect, render_template, request,
-                   send_file, url_for)
+from flask import (Blueprint, current_app, flash, jsonify, redirect, render_template,
+                   request, send_file, url_for)
 from flask_login import current_user
 
 import db
@@ -275,3 +275,55 @@ def ocr_rules_reset():
     db.delete_settings(['ocr_rules'])
     flash('已恢复出厂默认 OCR 规则', 'success')
     return redirect(url_for('admin.ocr_rules'))
+
+
+# ============ LDAP/AD 配置（可视化，保存后立即生效）============
+@bp.route('/admin/ldap')
+@admin_required
+def ldap_config():
+    saved = db.get_settings()
+    return render_template('admin/ldap.html', cfg=saved)
+
+
+@bp.route('/admin/ldap', methods=['POST'])
+@admin_required
+def ldap_config_save():
+    items = {
+        'ldap_enabled': '1' if request.form.get('ldap_enabled') == 'on' else '0',
+        'ldap_uri': request.form.get('ldap_uri', '').strip(),
+        'ldap_base_dn': request.form.get('ldap_base_dn', '').strip(),
+        'ldap_bind_dn': request.form.get('ldap_bind_dn', '').strip(),
+        'ldap_user_dn_template': request.form.get('ldap_user_dn_template', '').strip(),
+        'ldap_search_filter': request.form.get('ldap_search_filter', '').strip(),
+    }
+    bind_pwd = request.form.get('ldap_bind_password', '')
+    if bind_pwd:  # 留空保持原值
+        items['ldap_bind_password'] = bind_pwd
+    db.set_settings(items)
+    flash('LDAP 配置已保存，立即生效', 'success')
+    return redirect(url_for('admin.ldap_config'))
+
+
+@bp.route('/admin/ldap/test', methods=['POST'])
+@admin_required
+def ldap_config_test():
+    """测试连接 / 测试认证：使用表单中当前填写的参数（未保存也能测）。"""
+    from web.config import effective_ldap_config
+    from web.ldap_auth import test_connection
+    cfg = effective_ldap_config(current_app)
+    form_map = {'ldap_uri': 'LDAP_URI', 'ldap_base_dn': 'LDAP_BASE_DN',
+                'ldap_bind_dn': 'LDAP_BIND_DN',
+                'ldap_user_dn_template': 'LDAP_USER_DN_TEMPLATE',
+                'ldap_search_filter': 'LDAP_SEARCH_FILTER'}
+    for fk, ck in form_map.items():
+        v = request.form.get(fk, '').strip()
+        if v:
+            cfg[ck] = v
+    cfg['LDAP_ENABLED'] = request.form.get('ldap_enabled') == 'on'
+    pwd = request.form.get('ldap_bind_password', '')
+    if pwd:
+        cfg['LDAP_BIND_PASSWORD'] = pwd
+    ok, msg = test_connection(cfg,
+                              request.form.get('test_username', '').strip(),
+                              request.form.get('test_password', ''))
+    return jsonify({'ok': ok, 'message': msg})

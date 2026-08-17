@@ -92,6 +92,11 @@ def init_db():
         FOREIGN KEY (payment_id) REFERENCES payment_records(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,                  -- 配置项名（如 ldap_uri / ocr_rules）
+        value TEXT                             -- 配置值（JSON 或字符串）
+    );
+
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,         -- 登录名
