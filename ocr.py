@@ -149,13 +149,18 @@ class ContractOCR:
     """从合同文件（doc/docx/PDF/图片）提取结构化信息。
     docx 直接抽文本；PDF 优先用文本层，无文本则渲染后 OCR；.doc 二进制不支持。"""
 
-    def __init__(self, invoice_ocr=None):
-        # 复用外部 InvoiceOCR（共用 RapidOCR 单例），避免重复加载模型
+    def __init__(self, invoice_ocr=None, ocr_factory=None):
+        # 复用外部 InvoiceOCR（共用 RapidOCR 单例），避免重复加载模型；
+        # ocr_factory 支持懒加载：doc/docx 解析不依赖模型，首次需要时才调用
         self._invoice_ocr = invoice_ocr
+        self._ocr_factory = ocr_factory
 
     def _get_ocr(self):
         if self._invoice_ocr is None:
-            self._invoice_ocr = InvoiceOCR()
+            if self._ocr_factory is not None:
+                self._invoice_ocr = self._ocr_factory()
+            else:
+                self._invoice_ocr = InvoiceOCR()
         return self._invoice_ocr
 
     def extract(self, path):

@@ -1,9 +1,24 @@
 """BillHub Web 配置。
 所有路径与开关优先读环境变量，便于 Docker 部署；不设时回退到项目本地默认值。"""
 import os
+import pathlib
+import re
 
 # 项目根（web/ 的上一级）
-_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE = PROJECT_ROOT
+
+
+def read_version():
+    """从 pyproject.toml 读当前版本号（与发版 CI 保持同源），读不到时兜底 unknown。"""
+    try:
+        text = pathlib.Path(os.path.join(PROJECT_ROOT, 'pyproject.toml')).read_text(encoding='utf-8')
+        m = re.search(r'(?m)(?<=^version = ")[^"]+(?=")', text)
+        if m:
+            return m.group(0)
+    except OSError:
+        pass
+    return 'unknown'
 
 
 class Config:

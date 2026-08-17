@@ -29,14 +29,16 @@
       <a class="nav-item {{ 'active' if ep.startswith('payments.') }}"
          href="{{ url_for('payments.page') }}"><span>￥</span> 报销管理</a>
 
-      {% if current_user.is_admin %}
       <div class="nav-group-title">系统管理</div>
+      <a class="nav-item {{ 'active' if ep == 'main.changelog' }}"
+         href="{{ url_for('main.changelog') }}"><span>▤</span> 更新说明</a>
+      {% if current_user.is_admin %}
       <a class="nav-item {{ 'active' if ep.startswith('admin.') }}"
          href="{{ url_for('admin.users') }}"><span>◎</span> 用户管理</a>
       {% endif %}
     </nav>
     <div class="sidebar-bottom">
-      <div class="version">BillHub v2.0 · 内部版</div>
+      <div class="version">BillHub v{{ app_version }} · 内部版</div>
     </div>
   </aside>
 

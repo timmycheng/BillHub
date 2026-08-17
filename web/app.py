@@ -6,7 +6,7 @@ from flask import Flask
 
 import db
 from web.auth import auth_bp, hash_password, login_manager
-from web.config import Config
+from web.config import Config, read_version
 from web.routes.admin import bp as admin_bp
 from web.routes.contracts import bp as contracts_bp
 from web.routes.main import main_bp
@@ -48,6 +48,7 @@ def create_app(config_class=Config):
 
     # 静态资源缓存破坏：每次启动服务时间戳变化，浏览器必拉新版 CSS/JS
     app.jinja_env.globals['cache_bust'] = str(int(time.time()))
+    app.jinja_env.globals['app_version'] = read_version()
 
     # Jinja 过滤器：金额千分位格式化（¥1,234.56）
     @app.template_filter('money')

@@ -16,7 +16,8 @@ RUN pip install --no-cache-dir -r requirements-web.txt \
     && pip install --no-cache-dir opencv-python-headless
 
 # 拷业务代码 + 模板（templates/ 含审批表 Excel 模板）
-COPY db.py ocr.py template_engine.py contract_io.py utils.py ./
+# pyproject.toml / CHANGELOG.md 供运行时读取版本号与更新说明页
+COPY db.py ocr.py template_engine.py contract_io.py utils.py pyproject.toml CHANGELOG.md ./
 COPY web/ ./web/
 COPY templates/ ./templates/
 
