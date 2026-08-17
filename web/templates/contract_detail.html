@@ -141,7 +141,7 @@
       </tr></thead>
       <tbody>
       {% for rec in payments %}
-        <tr>
+        <tr class="rec-row">
           <td class="muted">{{ rec.created_at }}</td>
           <td>{{ rec.invoice_date or '—' }}</td>
           <td>{{ rec.stage or '—' }}</td>
@@ -170,7 +170,7 @@
             </form>
           </td>
         </tr>
-        <tr class="tl-row"><td colspan="8">{% include '_payment_timeline.html' %}</td></tr>
+        <tr class="tl-row" hidden><td colspan="8">{% include '_payment_timeline.html' %}</td></tr>
       {% endfor %}
       </tbody>
     </table>

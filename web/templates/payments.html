@@ -18,7 +18,7 @@
       </tr></thead>
       <tbody>
       {% for rec in records %}
-        <tr>
+        <tr class="rec-row">
           <td class="muted">BX-{{ '%05d'|format(rec.id) }}</td>
           <td><a href="{{ url_for('contracts.detail', cid=rec.contract_id) }}">{{ rec.contract_name }}</a></td>
           <td>{{ rec.stage or '—' }}</td>
@@ -51,7 +51,7 @@
             </form>
           </td>
         </tr>
-        <tr class="tl-row"><td colspan="9">{% include '_payment_timeline.html' %}</td></tr>
+        <tr class="tl-row" hidden><td colspan="9">{% include '_payment_timeline.html' %}</td></tr>
       {% else %}
         <tr><td colspan="9" class="empty-row">暂无报销记录，请到合同详情页点击「＋ 填报报销」</td></tr>
       {% endfor %}
