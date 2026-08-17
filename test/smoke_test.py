@@ -590,6 +590,45 @@ check('LDAP 测试接口返回结构化结果', r.status_code == 200
       and isinstance(j.get('ok'), bool) and isinstance(j.get('message'), str) and j['message'])
 check('未启用 LDAP 时本地账号登录不受影响', '仪表盘' in html_of(login()))
 
+# ============ 审计日志 ============
+_rows, _total = db.list_audit_logs()
+check('审计日志已记录操作', _total > 0, f'total={_total}')
+_ok = all(db.list_audit_logs(action=a)[1] > 0
+          for a in ('登录成功', '新建合同', '创建用户'))
+check('审计日志已覆盖核心操作（登录/合同/用户）', _ok)
+
+c.get('/logout')
+r = c.post('/login', data={'username': 'admin', 'password': 'wrong-pass-1'},
+           follow_redirects=True)
+login()
+_rows, _ = db.list_audit_logs(action='登录失败')
+check('登录失败留痕（含用户名与 IP 字段）',
+      _rows and _rows[0]['username'] == 'admin' and _rows[0]['target'] == 'admin')
+
+r = c.get('/admin/audit-logs')
+html = html_of(r)
+check('GET /admin/audit-logs（管理员可见）', r.status_code == 200 and '审计日志' in html)
+check('导航显示「审计日志」', 'admin/audit-logs' in html and '◷' in html)
+check('审计页展示操作与对象', '登录失败' in html and 'admin' in html)
+_, _total_fail = db.list_audit_logs(action='登录失败')
+r = c.get('/admin/audit-logs?action=登录失败')
+html = html_of(r)
+check('审计页按操作类型筛选', f'共 {_total_fail} 条' in html and '第 1/' in html)
+r = c.get('/admin/audit-logs?username=admin&action=登录成功')
+check('审计页按用户名+类型组合筛选', r.status_code == 200 and '登录成功' in html_of(r))
+
+login('u1', 'Qwe12345#')
+r = c.get('/admin/audit-logs')
+check('普通用户访问审计页 403', r.status_code == 403)
+login()
+
+for i in range(5010):
+    db.add_audit_log('测试操作', username='testbot')
+_conn = sqlite3.connect(db.DB_PATH)
+_n = _conn.execute('SELECT COUNT(*) FROM audit_logs').fetchone()[0]
+_conn.close()
+check('审计日志超过 5000 条自动清理最旧记录', _n <= 5000)
+
 # ============ 迁移兼容 ============
 old_db = os.path.join(TMP, 'old.db')
 conn = sqlite3.connect(old_db)

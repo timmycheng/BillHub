@@ -35,6 +35,8 @@
       {% if current_user.is_admin %}
       <a class="nav-item {{ 'active' if ep == 'admin.users' }}"
          href="{{ url_for('admin.users') }}"><span>◎</span> 用户管理</a>
+      <a class="nav-item {{ 'active' if ep == 'admin.audit_logs' }}"
+         href="{{ url_for('admin.audit_logs') }}"><span>◷</span> 审计日志</a>
       <a class="nav-item {{ 'active' if ep == 'admin.ocr_rules' }}"
          href="{{ url_for('admin.ocr_rules') }}"><span>✎</span> OCR 规则</a>
       <a class="nav-item {{ 'active' if ep == 'admin.ldap_config' }}"

@@ -124,6 +124,8 @@ def login():
 
         if ok and user_row:
             login_user(User(user_row))
+            from web.audit_log import log_action
+            log_action('登录成功', username=username)
             if user_row.get('must_change_password'):
                 flash('首次登录，请先修改初始密码后再使用系统', 'warning')
                 return redirect(url_for('auth.change_password'))
@@ -132,6 +134,8 @@ def login():
             if not next_url.startswith('/') or next_url.startswith('//'):
                 next_url = url_for('main.dashboard')
             return redirect(next_url)
+        from web.audit_log import log_action
+        log_action('登录失败', target=username, username=username)
         flash('用户名或密码错误', 'danger')
     return render_template('login.html')
 
@@ -139,6 +143,8 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    from web.audit_log import log_action
+    log_action('登出')
     logout_user()
     flash('已退出登录', 'info')
     return redirect(url_for('auth.login'))

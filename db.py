@@ -112,6 +112,17 @@ def init_db():
         key TEXT PRIMARY KEY,                  -- 配置项名（如 ldap_uri / ocr_rules）
         value TEXT                             -- 配置值（JSON 或字符串）
     );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,                       -- 操作人 id（登录失败等场景可空）
+        username TEXT NOT NULL,                -- 操作人用户名（快照，用户删除后仍可读）
+        action TEXT NOT NULL,                  -- 操作类型（如 登录成功 / 新建合同 / 报销状态流转）
+        target TEXT DEFAULT '',                -- 操作对象描述（合同编号+名称 / 用户名 / BX-xxxxx 等）
+        detail TEXT DEFAULT '',                -- 补充说明（如状态流转方向）
+        ip TEXT DEFAULT '',                    -- 来源 IP
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
     ''')
     conn.commit()
     conn.close()
@@ -704,3 +715,56 @@ def delete_user(user_id):
         conn.commit()
     finally:
         conn.close()
+
+
+# ============ 审计日志（关键操作留痕，管理员可查）============
+AUDIT_KEEP = 5000  # 仅保留最近 N 条，超出自动清理最旧记录
+
+
+def add_audit_log(action, target='', detail='', username='', user_id=None, ip=''):
+    """写入一条审计日志；写入后清理超量旧记录。审计失败不影响业务（由调用方兜底）。"""
+    conn = get_conn()
+    try:
+        conn.execute(
+            'INSERT INTO audit_logs (user_id, username, action, target, detail, ip) '
+            'VALUES (?,?,?,?,?,?)',
+            (user_id, username or '', action, target or '', detail or '', ip or ''))
+        conn.execute('DELETE FROM audit_logs WHERE id <= '
+                     '(SELECT MAX(id) - ? FROM audit_logs)', (AUDIT_KEEP,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def list_audit_logs(page=1, per_page=20, username=None, action=None,
+                    start_date=None, end_date=None):
+    """分页查询审计日志（可按用户名 / 操作类型 / 时间范围筛选），返回 (rows, total)。"""
+    where, params = [], []
+    if username:
+        where.append('username LIKE ?')
+        params.append(f'%{username}%')
+    if action:
+        where.append('action=?')
+        params.append(action)
+    if start_date:
+        where.append('created_at >= ?')
+        params.append(start_date + ' 00:00:00')
+    if end_date:
+        where.append('created_at <= ?')
+        params.append(end_date + ' 23:59:59')
+    cond = (' WHERE ' + ' AND '.join(where)) if where else ''
+    conn = get_conn()
+    total = conn.execute(f'SELECT COUNT(*) AS n FROM audit_logs{cond}', params).fetchone()['n']
+    rows = conn.execute(
+        f'SELECT * FROM audit_logs{cond} ORDER BY id DESC LIMIT ? OFFSET ?',
+        params + [per_page, (page - 1) * per_page]).fetchall()
+    conn.close()
+    return rows, total
+
+
+def list_audit_actions():
+    """所有出现过的操作类型（筛选用）。"""
+    conn = get_conn()
+    rows = conn.execute('SELECT DISTINCT action FROM audit_logs ORDER BY action').fetchall()
+    conn.close()
+    return [r['action'] for r in rows]
