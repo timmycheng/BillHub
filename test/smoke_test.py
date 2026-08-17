@@ -184,6 +184,7 @@ check('delete docx', '已删除电子稿' in html_of(r))
 # ============ 报销 ============
 r = c.get('/payments/form/1')
 check('GET /payments/form/1', r.status_code == 200 and '填报报销' in html_of(r))
+check('报销表单提示留空自动生成介绍', '留空则自动生成介绍' in html_of(r))
 
 TEMPLATE = os.environ.get('BILLHUB_TEMPLATE') or os.path.join(BASE, 'templates', '审批表模板2026.xlsx')
 if os.path.exists(TEMPLATE):
@@ -199,12 +200,27 @@ if os.path.exists(TEMPLATE):
 
     r = c.get('/preview/1')
     check('GET /preview/1', r.status_code == 200 and '合同支付审批表' in html_of(r))
+    p1 = html_of(r)
+    check('留空主要内容自动生成介绍（已存记录预览）',
+          '信息系统安全服务合同第1期付款' in p1 and '金额 ¥258,000.00' in p1
+          and '发票号 03123456' in p1)
     r = c.post('/preview/draft', data={
         'contract_id': '1', 'pay_date': '2026-08-13', 'invoice_date': '',
         'invoice_no': '', 'stage': '第2期', 'amount': '100000',
         'main_content': '', 'remark': '',
     })
     check('POST /preview/draft', r.status_code == 200 and '合同支付审批表' in html_of(r))
+    pd = html_of(r)
+    check('留空主要内容自动生成介绍（草稿预览，无发票号）',
+          '信息系统安全服务合同第2期付款' in pd and '金额 ¥100,000.00' in pd)
+    r = c.post('/preview/draft', data={
+        'contract_id': '1', 'pay_date': '2026-08-13', 'invoice_date': '',
+        'invoice_no': '', 'stage': '第2期', 'amount': '100000',
+        'main_content': '人工填写的内容优先', 'remark': '',
+    })
+    pm = html_of(r)
+    check('手动填写主要内容优先，不被自动文案覆盖',
+          '人工填写的内容优先' in pm and '自动生成' not in pm and '第2期付款' not in pm)
 
     r = c.get('/payments')
     txt = html_of(r)
@@ -360,12 +376,14 @@ try:
     name = conn.execute('SELECT contract_name FROM contracts WHERE id=1').fetchone()[0]
     pay = conn.execute('SELECT status, submitted_at FROM payment_records WHERE id=1').fetchone()
     ucols = {r2[1] for r2 in conn.execute('PRAGMA table_info(users)')}
+    pcols = {r2[1] for r2 in conn.execute('PRAGMA table_info(payment_records)')}
     conn.close()
     ok = ({'contract_manager', 'category', 'start_date', 'end_date', 'doc_file',
            'scan_file', 'owner_id'} <= cols
           and n == 1 and name == '旧合同'
           and pay[0] == '已提交' and pay[1] is not None
-          and {'ad_dn', 'password_hash'} <= ucols)
+          and {'ad_dn', 'password_hash'} <= ucols
+          and 'main_content' in pcols)
     check('迁移兼容（最旧结构重建 + 回填）', ok)
 finally:
     db.DB_PATH = _old_path

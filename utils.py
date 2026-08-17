@@ -86,6 +86,19 @@ def num_to_cn(num):
     return result + '元' + digits[jiao] + '角' + digits[fen] + '分'
 
 
+def auto_main_content(c, stage='', amount=0, invoice_no=''):
+    """「主要内容」留空时的自动介绍文案：合同名 + 期数 + 金额 + 发票号。
+    例：信息系统安全服务合同第1期付款，金额 ¥258,000.00，发票号 03123456"""
+    name = (c.get('contract_name') or '').strip()
+    if not name:
+        return ''
+    parts = [name + (stage or '').strip() + '付款',
+             f'金额 ¥{float(amount):,.2f}']
+    if (invoice_no or '').strip():
+        parts.append(f'发票号 {invoice_no.strip()}')
+    return '，'.join(parts)
+
+
 def build_report_context(c, pay_date, invoice_date, amount, invoice_no,
                          stage, main_content='', remark='', include_virtual=True):
     """组装审批表渲染上下文（与桌面版 MainWindow._build_report_data 等价）。
@@ -108,7 +121,7 @@ def build_report_context(c, pay_date, invoice_date, amount, invoice_no,
         '合同编号': c['contract_no'],
         '合同名称': c['contract_name'],
         '客户名称': c['customer_name'] or '',
-        '合同备注': main_content or c['remark'] or '',
+        '合同备注': main_content or auto_main_content(c, stage, amount, invoice_no) or c['remark'] or '',
         '合同总额': f"{c['total_amount']:,.2f}",
         '合同总额大写': num_to_cn(c['total_amount']),
         '已报销总额': f"{stats['paid']:,.2f}",
@@ -153,7 +166,8 @@ def build_record_preview(c, rec):
     本次支付 = 该记录自身的分期分配。返回 (ctx, stages, this_pay)。"""
     ctx, stages, _ = build_report_context(
         c, rec['pay_date'], rec.get('invoice_date') or '', rec['amount'],
-        rec.get('invoice_no') or '', rec.get('stage') or '', '',
+        rec.get('invoice_no') or '', rec.get('stage') or '',
+        rec.get('main_content') or '',
         rec.get('remark') or '', include_virtual=False)
     plan_rows = db.list_payment_plan(c['id'])
     paid, _, _ = db.compute_stage_alloc(plan_rows, [rec])
