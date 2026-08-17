@@ -641,8 +641,25 @@ def update_user(user_id, display_name=None, is_admin=None, password_hash=None, a
     conn.close()
 
 
+class UserHasContractsError(Exception):
+    """删除用户时其名下仍有合同（需先转移经办人）。"""
+
+    def __init__(self, n):
+        self.n = n
+        super().__init__(f'该用户名下还有 {n} 个合同')
+
+
 def delete_user(user_id):
+    """删除用户。名下仍有合同时抛 UserHasContractsError（不删除）；
+    其填报的报销记录 user_id 置空保留（记录归属合同，与用户解耦）。"""
     conn = get_conn()
-    conn.execute('DELETE FROM users WHERE id=?', (user_id,))
-    conn.commit()
-    conn.close()
+    try:
+        n = conn.execute(
+            'SELECT COUNT(*) AS n FROM contracts WHERE owner_id=?', (user_id,)).fetchone()['n']
+        if n:
+            raise UserHasContractsError(n)
+        conn.execute('UPDATE payment_records SET user_id=NULL WHERE user_id=?', (user_id,))
+        conn.execute('DELETE FROM users WHERE id=?', (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
