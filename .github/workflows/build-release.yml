@@ -36,6 +36,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.BILLHUB_ADMIN_TOKEN }}
 
       - name: Resolve & validate version
         if: github.event_name == 'workflow_dispatch'
