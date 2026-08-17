@@ -45,7 +45,7 @@ app = create_app()
 c = app.test_client()
 
 
-def login(u='admin', p='admin'):
+def login(u='admin', p='Admin123!'):
     c.get('/logout')
     return c.post('/login', data={'username': u, 'password': p}, follow_redirects=True)
 
@@ -60,8 +60,38 @@ check('login page brand', 'BillHub' in html_of(r))
 r = c.get('/')
 check('GET / redirects to login (unauth)', r.status_code == 302)
 
+# ============ 种子管理员首次登录强制改密 ============
+r = c.post('/login', data={'username': 'admin', 'password': 'admin'},
+           follow_redirects=True)
+check('种子管理员登录直接进入改密页', '首次登录' in html_of(r) and '修改密码' in html_of(r))
+r = c.get('/contracts', follow_redirects=False)
+check('未改密前业务页被强制跳转改密', r.status_code == 302
+      and '/account/password' in (r.headers.get('Location') or ''))
+r = c.get('/', follow_redirects=True)
+check('未改密前首页也跳转改密', '修改密码' in html_of(r) and '合同数量' not in html_of(r))
+r = c.post('/account/password',
+           data={'old_password': 'admin', 'new_password': 'Admin123!',
+                 'confirm_password': 'Admin123!'}, follow_redirects=True)
+check('种子管理员改密成功后进入工作台', '仪表盘' in html_of(r) and '密码已修改' in html_of(r))
+r = c.get('/contracts')
+check('改密后业务页恢复正常访问', r.status_code == 200 and '合同管理' in html_of(r))
 r = login()
-check('login admin/admin', r.status_code == 200 and '仪表盘' in html_of(r))
+check('种子管理员改密后再次登录不再强制', '仪表盘' in html_of(r))
+
+# 自定义 BILLHUB_ADMIN_PASS 的种子管理员同样强制改密（新库 + 新 app 实例）
+import db  # noqa: E402
+from web.config import Config  # noqa: E402
+_old_admin_pass = Config.DEFAULT_ADMIN_PASSWORD
+_old_db_path = db.DB_PATH
+Config.DEFAULT_ADMIN_PASSWORD = 'CustomPass9#'
+db.DB_PATH = os.path.join(TMP, 'seed_custom.db')
+app2 = create_app()
+c2 = app2.test_client()
+r2 = c2.post('/login', data={'username': 'admin', 'password': 'CustomPass9#'},
+             follow_redirects=True)
+check('自定义密码的种子管理员也强制改密', '首次登录' in r2.get_data(as_text=True))
+Config.DEFAULT_ADMIN_PASSWORD = _old_admin_pass
+db.DB_PATH = _old_db_path
 
 # ============ 仪表盘（2.1：改名 / 去左下角用户块）============
 html = html_of(c.get('/'))
@@ -373,7 +403,7 @@ if os.path.exists(TEMPLATE):
     txt = html_of(r)
     check('经办人直接 POST 状态被拒并提示无权限',
           '仅管理员可推进报销状态' in txt and db.get_payment(u1_pid)['status'] == '已提交')
-    login('admin', 'admin')
+    login()
     c.post(f'/contracts/{u1_cid}/delete', follow_redirects=True)
 
     r = c.get('/contracts/1')

@@ -74,11 +74,11 @@ def create_app(config_class=Config):
 
 def _seed_admin(app):
     """users 表为空时自动创建默认管理员（用户名/密码可由环境变量配置）。
-    首次登录后请立即在 P5 用户管理页或命令行修改密码。"""
+    与批量导入用户一致：创建即标记 must_change_password，首次登录强制修改密码。"""
     if db.count_users() > 0:
         return
     username = app.config['DEFAULT_ADMIN_USERNAME']
     password = app.config['DEFAULT_ADMIN_PASSWORD']
     db.create_user(username, hash_password(password),
-                   display_name='管理员', is_admin=1)
-    app.logger.info('已创建默认管理员账户：%s（请尽快修改密码）', username)
+                   display_name='管理员', is_admin=1, must_change_password=1)
+    app.logger.info('已创建默认管理员账户：%s（首次登录将强制修改密码）', username)
