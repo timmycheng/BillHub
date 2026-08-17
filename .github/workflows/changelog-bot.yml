@@ -1,0 +1,102 @@
+# CHANGELOG 机器人：PR 合并后按标签自动追加条目到 [Unreleased]
+# - 归类：修复/bug → 修复；新增/功能 → 新增；移除 → 移除；其余默认 → 变更
+# - 跳过：纯文档 PR；PR 已手动改过 CHANGELOG.md
+# - 条目：- <PR 标题>（#Issue 编号），Issue 编号取自 PR 描述中的 Closes/Fixes #N
+name: Changelog Bot
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUM: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Append CHANGELOG entry
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re, subprocess
+
+          pr_num = os.environ['PR_NUM']
+          pr = json.loads(subprocess.check_output(
+              ['gh', 'pr', 'view', pr_num, '--json', 'title,labels,files,body']))
+          title = pr['title'].strip()
+          files = [f['path'] for f in pr['files']]
+
+          if not files:
+              raise SystemExit('PR 无文件变更，跳过')
+          if all(f.endswith('.md') for f in files):
+              print('纯文档改动，不追加 CHANGELOG 条目')
+              raise SystemExit(0)
+          if 'CHANGELOG.md' in files:
+              print('PR 已手动更新 CHANGELOG.md，跳过自动追加')
+              raise SystemExit(0)
+
+          labels = [l['name'] for l in pr['labels']]
+          if any(l in labels for l in ('修复', 'bug')):
+              cat = '修复'
+          elif any(l in labels for l in ('新增', '功能')):
+              cat = '新增'
+          elif '移除' in labels:
+              cat = '移除'
+          else:
+              cat = '变更'
+
+          m = re.search(r'(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s*#?(\d+)',
+                        pr['body'] or '', re.I)
+          entry = f"- {title}（#{m.group(1)}）" if m else f"- {title}（PR #{pr_num}）"
+
+          ch = pathlib.Path('CHANGELOG.md')
+          text = ch.read_text(encoding='utf-8')
+          um = re.search(r'^## \[Unreleased\][^\n]*\n?', text, re.M)
+          if not um:
+              raise SystemExit('CHANGELOG.md 缺少 [Unreleased] 小节，请手动补写条目')
+          start = um.end()
+          nm = re.search(r'^## \[', text[start:], re.M)
+          end = start + nm.start() if nm else len(text)
+          block = text[start:end]
+
+          parts = re.split(r'^(### .*)$', block, flags=re.M)
+          if parts[0].strip():
+              raise SystemExit('[Unreleased] 下存在无小节归属的内容，请手动补写条目')
+
+          target = f'### {cat}'
+          out, found = [], False
+          for i in range(1, len(parts), 2):
+              header = parts[i].strip()
+              body = parts[i + 1] if i + 1 < len(parts) else ''
+              if header == target:
+                  if entry in body:
+                      print('条目已存在，跳过')
+                      raise SystemExit(0)
+                  out.append(header + '\n' + body.rstrip() + '\n' + entry + '\n\n')
+                  found = True
+              else:
+                  out.append(header + '\n' + body)
+          if not found:
+              out.append(f'{target}\n\n{entry}\n\n')
+
+          ch.write_text(text[:start] + ''.join(out) + text[end:], encoding='utf-8')
+          print(f'已追加到 [Unreleased] {target}：{entry}')
+          PY
+
+      - name: Commit & push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main
+          git add CHANGELOG.md
+          git commit -m "chore(changelog): 自动追加 PR #${{ github.event.pull_request.number }} 条目" || echo '无可提交变更'
+          git push origin main

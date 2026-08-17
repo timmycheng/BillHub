@@ -1,0 +1,27 @@
+# Issue 生命周期：新建自动打「待开发」；关闭自动打「已完成」并清掉进行中标签
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened, closed]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - name: 新建 → 待开发
+        if: github.event.action == 'opened'
+        run: gh issue edit "$ISSUE" --add-label 待开发
+
+      - name: 关闭 → 已完成
+        if: github.event.action == 'closed'
+        run: |
+          gh issue edit "$ISSUE" --add-label 已完成
+          gh issue edit "$ISSUE" --remove-label 待开发 || true
+          gh issue edit "$ISSUE" --remove-label 开发中 || true

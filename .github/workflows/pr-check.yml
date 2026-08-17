@@ -1,0 +1,29 @@
+# PR 检查：冒烟测试（覆盖登录 / 合同 / 附件 / 报销 / 状态流转 / 分页 / 迁移兼容等）
+# 说明：rapidocr / ldap3 / pymupdf 均为惰性导入，CI 只装最小依赖，OCR HTTP 部分自动 SKIP
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install flask flask-login openpyxl
+
+      - name: Run smoke test
+        run: python test/smoke_test.py

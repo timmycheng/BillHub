@@ -1,0 +1,26 @@
+name: 功能需求
+description: 提出新功能或改进点
+title: '[功能] '
+labels: [功能]
+body:
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景与目的
+      description: 为什么需要这个功能？要解决什么问题？
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 功能描述
+      description: 期望的行为是什么样的？
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 怎样算完成？写清楚便于冒烟测试覆盖。
+    validations:
+      required: false

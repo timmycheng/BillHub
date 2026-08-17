@@ -1,0 +1,44 @@
+# Issue 开发启动：在 Issue 下评论 /dev，自动创建关联分支 issue-N 并打「开发中」标签
+name: Issue /dev
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  create-branch:
+    # 仅普通 Issue（排除 PR 评论）、非机器人、且评论含 /dev 命令
+    if: github.event.issue.pull_request == null
+      && github.event.comment.user.type != 'Bot'
+      && contains(github.event.comment.body, '/dev')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+      BRANCH: issue-${{ github.event.issue.number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 创建开发分支并回复
+        shell: bash
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -e
+          if ! printf '%s\n' "$COMMENT_BODY" | grep -Eq '(^|[[:space:]])/dev([[:space:]]|$)'; then
+            echo "评论含 /dev 子串但非独立命令，忽略"
+            exit 0
+          fi
+          if git ls-remote --heads origin "$BRANCH" | grep -q .; then
+            gh issue comment "$ISSUE" -b "开发分支已存在：\`$BRANCH\`，直接拉取开发即可。"
+          else
+            gh issue develop "$ISSUE" --name "$BRANCH"
+            gh issue comment "$ISSUE" -b "已创建开发分支 \`$BRANCH\`。开发完成后提 PR，PR 描述写明 \`Closes #$ISSUE\`，CI 会跑冒烟测试，合并后自动关闭本 Issue 并追加 CHANGELOG 条目。"
+            gh issue edit "$ISSUE" --add-label 开发中
+            gh issue edit "$ISSUE" --remove-label 待开发 || true
+          fi
