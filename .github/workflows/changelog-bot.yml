@@ -1,7 +1,9 @@
 # CHANGELOG 机器人：PR 合并后按标签自动追加条目到 [Unreleased]
 # - 归类：修复/bug → 修复；新增/功能 → 新增；移除 → 移除；其余默认 → 变更
 # - 跳过：纯文档 PR；PR 已手动改过 CHANGELOG.md
-# - 条目：- <PR 标题>（#Issue 编号），Issue 编号取自 PR 描述中的 Closes/Fixes #N
+# - 条目：- <PR 标题>（#编号1、#编号2…），支持一个 PR 关闭多个 Issue；
+#   编号取自 GitHub closingIssuesReferences（含分支关联自动关闭）+ PR 描述中的 Closes/Fixes #N（去重保序）；
+#   一个编号都没有时退回（PR #N）
 name: Changelog Bot
 
 on:
@@ -32,7 +34,8 @@ jobs:
 
           pr_num = os.environ['PR_NUM']
           pr = json.loads(subprocess.check_output(
-              ['gh', 'pr', 'view', pr_num, '--json', 'title,labels,files,body']))
+              ['gh', 'pr', 'view', pr_num,
+               '--json', 'title,labels,files,body,closingIssuesReferences']))
           title = pr['title'].strip()
           files = [f['path'] for f in pr['files']]
 
@@ -55,9 +58,20 @@ jobs:
           else:
               cat = '变更'
 
-          m = re.search(r'(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s*#?(\d+)',
-                        pr['body'] or '', re.I)
-          entry = f"- {title}（#{m.group(1)}）" if m else f"- {title}（PR #{pr_num}）"
+          # 收集本 PR 关闭的全部 Issue 编号（去重保序）：
+          # 1) GitHub 关联（含分支关联自动关闭、Closes 关键字），2) PR 描述关键词正则兜底
+          nums = []
+          for ref in (pr.get('closingIssuesReferences') or []):
+              n = ref.get('number')
+              if n is not None and str(n) not in nums:
+                  nums.append(str(n))
+          for m in re.findall(
+                  r'(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s*#?(\d+)',
+                  pr['body'] or '', re.I):
+              if m not in nums:
+                  nums.append(m)
+          ref = '、'.join(f'#{n}' for n in nums)
+          entry = f'- {title}（{ref}）' if ref else f'- {title}（PR #{pr_num}）'
 
           ch = pathlib.Path('CHANGELOG.md')
           text = ch.read_text(encoding='utf-8')
