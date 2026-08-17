@@ -10,7 +10,7 @@ from flask_login import current_user, login_required
 
 import db
 import template_engine
-from utils import build_report_context, safe_dirname
+from utils import auto_main_content, build_report_context, safe_dirname
 from web.auth import can_access_contract
 
 bp = Blueprint('payments', __name__)
@@ -82,6 +82,8 @@ def create():
     stage = request.form.get('stage', '').strip()
     main_content = request.form.get('main_content', '').strip()
     remark = request.form.get('remark', '').strip()
+    if not main_content:
+        main_content = auto_main_content(c, stage, amount, invoice_no)
 
     # 发票号重复/相似校验（归一化后与历史记录一致则禁止填报）
     if invoice_no:
@@ -125,7 +127,7 @@ def create():
     new_pid = db.add_payment(contract_id=cid, pay_date=pay_date, invoice_date=invoice_date,
                              stage=stage, amount=amount, invoice_no=invoice_no, remark=remark,
                              invoice_file=invoice_file, report_file=out_path,
-                             user_id=int(current_user.id))
+                             user_id=int(current_user.id), main_content=main_content)
 
     # 保存本次上传的相关文件（多文件）
     save_dir = os.path.join(current_app.config['PAYMENT_FILE_DIR'], str(new_pid))
