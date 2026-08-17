@@ -618,6 +618,14 @@ check('Dockerfile CMD 使用 --call 工厂形式', '--call", "web.app:create_app
       and 'create_app()' not in df)
 check('Dockerfile 固定 TZ=Asia/Shanghai 并安装 tzdata', 'ENV TZ=Asia/Shanghai' in df and 'tzdata' in df)
 
+# 发版工作流：Docker Hub 双标签推送（Secrets 配置，失败仅警告）
+with open(os.path.join(BASE, '.github', 'workflows', 'build-release.yml'), encoding='utf-8') as fh:
+    wf = fh.read()
+check('发版工作流 Docker Hub 双标签推送（latest + 版本，失败仅警告）',
+      'billhub-web:latest' in wf and 'docker/login-action' in wf
+      and 'DOCKERHUB_NAMESPACE' in wf and 'continue-on-error' in wf
+      and '不阻断发版' in wf)
+
 shutil.rmtree(TMP, ignore_errors=True)
 print()
 if fails:

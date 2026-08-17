@@ -130,10 +130,16 @@ jobs:
           git push origin main
           echo "ver=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
 
-  # ============ Job 1：Web Docker 镜像（Linux，导出离线 tar）============
+  # ============ Job 1：Web Docker 镜像（Linux，导出离线 tar + 推送 Docker Hub）============
+  # Docker Hub 推送：命名空间与凭据均走 Secrets（DOCKERHUB_NAMESPACE / DOCKERHUB_USERNAME / DOCKERHUB_TOKEN）。
+  # 未配置 → 跳过并警告；已配置但推送失败 → 仅警告，不阻断发版（Release / 邮件照常）。
   build-docker:
     needs: [ prep ]
     runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -146,6 +152,33 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t billhub-web:${{ steps.version.outputs.ver }} -f Dockerfile.web .
+
+      - name: Login to Docker Hub
+        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Tag & push to Docker Hub (latest + version)
+        id: push
+        if: env.DOCKERHUB_NAMESPACE != '' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        continue-on-error: true
+        run: |
+          VER=${{ steps.version.outputs.ver }}
+          NS=${DOCKERHUB_NAMESPACE}
+          docker tag billhub-web:${VER} ${NS}/billhub-web:latest
+          docker tag billhub-web:${VER} ${NS}/billhub-web:${VER}
+          docker push ${NS}/billhub-web:latest
+          docker push ${NS}/billhub-web:${VER}
+
+      - name: Docker Hub push skipped (secrets not configured)
+        if: env.DOCKERHUB_NAMESPACE == '' || env.DOCKERHUB_USERNAME == '' || env.DOCKERHUB_TOKEN == ''
+        run: echo "::warning::Docker Hub 推送已跳过：请配置 DOCKERHUB_NAMESPACE / DOCKERHUB_USERNAME / DOCKERHUB_TOKEN Secrets"
+
+      - name: Docker Hub push failed (warning only, 不阻断发版)
+        if: steps.push.outcome == 'failure'
+        run: echo "::warning::Docker Hub 推送失败（latest / 版本标签），已跳过不阻断发版，请检查凭据与网络"
 
       - name: Export image (docker save + zstd)
         run: |
