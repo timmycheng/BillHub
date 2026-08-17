@@ -2,7 +2,6 @@
 复用 template_engine + utils.build_report_context（与桌面版同逻辑）。"""
 import os
 import re
-from datetime import datetime
 
 from flask import (Blueprint, abort, current_app, flash, redirect,
                    render_template, request, send_file, url_for)
@@ -43,7 +42,7 @@ def form(cid):
     default_seq = next((p['seq'] for p in plan if p['seq'] not in paid_stages), None)
     return render_template('_reimburse_form.html', c=c, plan=plan,
                            paid_stages=paid_stages, default_seq=default_seq,
-                           today=datetime.now().strftime('%Y-%m-%d'))
+                           today=db.cn_now().strftime('%Y-%m-%d'))
 
 
 def _get_accessible_contract(cid):
@@ -75,8 +74,8 @@ def create():
         flash(f'找不到审批表模板：{template_path}', 'danger')
         return redirect(url_for('contracts.detail', cid=cid))
 
-    # 报销日期不再由用户填写，固定为创建当天的日期（创建时间见 created_at）
-    pay_date = datetime.now().strftime('%Y-%m-%d')
+    # 报销日期不再由用户填写，固定为创建当天的日期（北京时间；创建时间见 created_at）
+    pay_date = db.cn_now().strftime('%Y-%m-%d')
     invoice_date = request.form.get('invoice_date', '').strip()
     invoice_no = request.form.get('invoice_no', '').strip()
     stage = request.form.get('stage', '').strip()
@@ -100,7 +99,7 @@ def create():
     contract_dir = os.path.join(current_app.config['REPORT_DIR'],
                                 safe_dirname(c['contract_name']))
     os.makedirs(contract_dir, exist_ok=True)
-    fname = f"审批表_{pay_date}_{datetime.now().strftime('%H%M%S%f')}.xlsx"
+    fname = f"审批表_{pay_date}_{db.cn_now().strftime('%H%M%S%f')}.xlsx"
     out_path = os.path.join(contract_dir, fname)
     try:
         template_engine.render_approval_template(template_path, out_path, ctx, stages)
@@ -114,7 +113,7 @@ def create():
     if f and f.filename:
         ext = os.path.splitext(f.filename)[1].lower() or ''
         safe_no = re.sub(r'[^\w\-]', '', c['contract_no'] or '') or f"id{c['id']}"
-        inv_fname = f"{safe_no}_{pay_date}_{datetime.now().strftime('%H%M%S')}{ext}"
+        inv_fname = f"{safe_no}_{pay_date}_{db.cn_now().strftime('%H%M%S')}{ext}"
         inv_dir = current_app.config['INVOICE_DIR']
         os.makedirs(inv_dir, exist_ok=True)
         dest = os.path.join(inv_dir, inv_fname)
@@ -137,7 +136,7 @@ def create():
             continue
         up_ext = os.path.splitext(up.filename)[1].lower()
         safe = re.sub(r'[^\w\-.]', '_', up.filename) or ('attachment' + up_ext)
-        dest = os.path.join(save_dir, f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe}")
+        dest = os.path.join(save_dir, f"{db.cn_now().strftime('%Y%m%d%H%M%S')}_{safe}")
         try:
             up.save(dest)
             db.add_payment_file(new_pid, up.filename, dest)

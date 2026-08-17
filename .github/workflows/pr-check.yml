@@ -13,6 +13,8 @@ concurrency:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai   # 系统时间统一北京时间（验证 localtime 默认值按东八区生成）
     steps:
       - name: Checkout
         uses: actions/checkout@v4

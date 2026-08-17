@@ -1,7 +1,7 @@
 """BillHub 公共工具模块（桌面版 main.py 与 Web 版共享）。
 num_to_cn / safe_dirname 从 main.py 抽取，桌面版改为 import 复用。"""
 import re
-from datetime import date, datetime
+from datetime import date
 
 import db
 
@@ -135,7 +135,7 @@ def build_report_context(c, pay_date, invoice_date, amount, invoice_no,
         '报销日期': pay_date,
         '阶段': stage,
         '备注': remark,
-        '生成日期': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        '生成日期': db.cn_now().strftime('%Y-%m-%d %H:%M'),
         '经办人': '',
         '收款单位': c['payee'] or '',
         '开户银行': c['bank_name'] or '',

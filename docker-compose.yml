@@ -20,4 +20,6 @@ services:
       - BILLHUB_ADMIN_PASS=${BILLHUB_ADMIN_PASS:-admin}
       # 批量导入用户的初始密码（首登强制修改）
       - BILLHUB_IMPORT_PASSWORD=${BILLHUB_IMPORT_PASSWORD:-Abc12345!}
+      # 系统时区（默认北京时间；镜像内已固定，此处便于覆盖）
+      - TZ=${TZ:-Asia/Shanghai}
     restart: unless-stopped
