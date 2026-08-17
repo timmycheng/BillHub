@@ -111,7 +111,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull --rebase origin main
           git add CHANGELOG.md
           git commit -m "chore(changelog): 自动追加 PR #${{ github.event.pull_request.number }} 条目" || echo '无可提交变更'
+          git pull --rebase origin main
           git push origin main

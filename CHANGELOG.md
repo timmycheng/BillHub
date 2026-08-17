@@ -17,6 +17,7 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 
 ### 变更
 
+- ci: 强化 changelog-bot——支持一个 PR 关闭多个 Issue，条目列出全部编号（#3）
 - 开发流程切换为 GitHub Issues 驱动（`issue.md` 退役）：Issue 模板（功能需求 / Bug 报告）、新建自动打「待开发」标签、评论 `/dev` 自动创建关联分支并打「开发中」、PR 自动跑冒烟测试、合并后按 PR 归类标签自动追加 CHANGELOG 条目并自动关闭 Issue
 
 ### 修复
