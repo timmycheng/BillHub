@@ -157,6 +157,15 @@
           </td>
           <td class="cell-remark" title="{{ rec.remark }}">{{ rec.remark or '—' }}</td>
           <td class="cell-actions">
+            {% set next_status = {'已提交': '审核中', '审核中': '已打款'}.get(rec.status) %}
+            {% if current_user.is_admin and next_status %}
+            <form method="post" action="{{ url_for('payments.set_status', pid=rec.id) }}" style="display:inline">
+              <input type="hidden" name="to" value="{{ next_status }}">
+              <button type="submit" class="row-btn">标记为「{{ next_status }}」</button>
+            </form>
+            {% elif rec.status == '已打款' %}
+            <span class="tag green">已完成</span>
+            {% endif %}
             <button type="button" class="row-btn" onclick="openPreview({{ rec.id }})">预览</button>
             {% if rec.invoice_file %}
             <a href="{{ url_for('payments.download_invoice', pid=rec.id) }}" class="row-btn">票据</a>
