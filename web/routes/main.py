@@ -1,12 +1,16 @@
-"""BillHub 主面板：工作台（汇总统计 + 付款趋势 + 待办 + 最近报销记录）。"""
+"""BillHub 主面板：工作台（汇总统计 + 付款趋势 + 待办 + 最近报销记录）与更新说明页。"""
+import os
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 
 from flask import Blueprint, render_template, url_for
 from flask_login import current_user, login_required
+from markupsafe import escape
 
 import db
 from utils import contract_statuses
+from web.config import PROJECT_ROOT
 
 main_bp = Blueprint('main', __name__)
 
@@ -70,3 +74,56 @@ def dashboard():
                            months=months, max_total=max_total,
                            expiring=expiring, pending_effective=pending_effective,
                            reviewing=reviewing)
+
+
+# ============ 更新说明（CHANGELOG 同步展示）============
+def _changelog_inline(text):
+    text = escape(text)
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)',
+                  r'<a href="\2" target="_blank" rel="noopener">\1</a>', text)
+    text = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', text)
+    return text
+
+
+def changelog_to_html(md):
+    """把 CHANGELOG.md 转成 HTML（仅需 #/##/###/列表/加粗/链接，零第三方依赖）。"""
+    html, in_list = [], False
+    for line in md.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith('### '):
+            if in_list:
+                html.append('</ul>')
+                in_list = False
+            html.append(f'<h3>{_changelog_inline(s[4:])}</h3>')
+        elif s.startswith('## '):
+            if in_list:
+                html.append('</ul>')
+                in_list = False
+            html.append(f'<h2>{_changelog_inline(s[3:])}</h2>')
+        elif s.startswith('# '):
+            continue  # 文档主标题由页面自带
+        elif s.startswith('- '):
+            if not in_list:
+                html.append('<ul>')
+                in_list = True
+            html.append(f'<li>{_changelog_inline(s[2:])}</li>')
+        else:
+            if in_list:
+                html.append('</ul>')
+                in_list = False
+            html.append(f'<p>{_changelog_inline(s)}</p>')
+    if in_list:
+        html.append('</ul>')
+    return '\n'.join(html)
+
+
+@main_bp.route('/changelog')
+@login_required
+def changelog():
+    path = os.path.join(PROJECT_ROOT, 'CHANGELOG.md')
+    if not os.path.exists(path):
+        return render_template('changelog.html', content_html='')
+    with open(path, encoding='utf-8') as fh:
+        return render_template('changelog.html', content_html=changelog_to_html(fh.read()))
