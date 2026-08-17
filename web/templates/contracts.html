@@ -82,7 +82,7 @@
             {% else %}<span class="tag orange">未生效</span>{% endif %}
           </td>
           <td class="cell-actions">
-            <button type="button" class="btn primary small" onclick="openReimburse({{ r.c.id }})">报销</button>
+            <button type="button" class="row-btn" onclick="openReimburse({{ r.c.id }})">报销</button>
             <a href="{{ url_for('contracts.detail', cid=r.c.id) }}" class="row-btn">详情</a>
             <a href="{{ url_for('contracts.edit', cid=r.c.id) }}" class="row-btn">编辑</a>
           </td>
