@@ -400,6 +400,16 @@ body.modal-open { overflow: hidden; }
   .doc-title { font-size: 16px; }
 }
 
+/* ============ 更新说明 ============ */
+.changelog-doc { padding: 8px 24px 24px; }
+.changelog-doc h2 { font-size: 17px; margin: 22px 0 10px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--line); color: var(--text); }
+.changelog-doc h3 { font-size: 14px; margin: 14px 0 6px; color: var(--blue); }
+.changelog-doc ul { margin: 4px 0 10px; padding-left: 20px; }
+.changelog-doc li { margin: 6px 0; line-height: 1.65; }
+.changelog-doc p { margin: 8px 0; line-height: 1.7; color: var(--muted); }
+.changelog-doc a { color: var(--blue); }
+
 /* ============ 响应式 ============ */
 @media (max-width: 1100px) {
   .sidebar { width: 210px; }

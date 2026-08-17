@@ -27,7 +27,9 @@ def _get_ocr():
 def _get_contract_ocr():
     global _CONTRACT_OCR
     if _CONTRACT_OCR is None:
-        _CONTRACT_OCR = ContractOCR(_get_ocr())  # 共用底层 RapidOCR
+        # 引擎懒加载：doc/docx 解析与类型校验不依赖 OCR 模型，
+        # 无模型环境（如 CI）也能正确校验/解析；图片 PDF 首次需要时才加载（仍共用单例）
+        _CONTRACT_OCR = ContractOCR(ocr_factory=_get_ocr)
     return _CONTRACT_OCR
 
 

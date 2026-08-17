@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}更新说明{% endblock %}
+{% block crumb %}<span>系统管理</span><span class="sep">/</span><strong>更新说明</strong>{% endblock %}
+{% block body %}
+<div class="page-head">
+  <div>
+    <h1>更新说明</h1>
+    <p>BillHub 各版本变更记录，与 CHANGELOG 内容同步。</p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="changelog-doc">
+    {% if content_html %}{{ content_html|safe }}{% else %}<p class="muted pad-sm">暂无更新说明</p>{% endif %}
+  </div>
+</div>
+{% endblock %}
