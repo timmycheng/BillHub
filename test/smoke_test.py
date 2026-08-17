@@ -14,9 +14,12 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import tomllib
 import zipfile
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+with open(os.path.join(BASE, 'pyproject.toml'), 'rb') as _fh:
+    APP_VER = tomllib.load(_fh)['project']['version']
 TMP = tempfile.mkdtemp(prefix='billhub_smoke_')
 os.environ['BILLHUB_DB'] = os.path.join(TMP, 'test.db')
 os.environ['BILLHUB_UPLOAD_DIR'] = os.path.join(TMP, 'uploads')
@@ -61,6 +64,15 @@ html = html_of(c.get('/'))
 check('导航显示「仪表盘」', '仪表盘' in html and 'Dashboard' not in html)
 check('导航左下角无 mini-user', 'mini-user' not in html)
 check('仪表盘统计卡', '合同数量' in html and '待办事项' in html)
+
+# ============ 更新说明（导航 / 版本号 / CHANGELOG 页面）============
+check('导航显示「更新说明」', '更新说明' in html and '/changelog' in html)
+check('左下角版本号与实际版本一致', f'BillHub v{APP_VER}' in html and '内部版' in html)
+r = c.get('/changelog')
+html = html_of(r)
+check('GET /changelog', r.status_code == 200 and '更新说明' in html)
+check('changelog 页面内容与 CHANGELOG 一致',
+      f'[{APP_VER}]' in html and 'Unreleased' in html and '变更' in html)
 
 # ============ 用户管理（2.1：弹窗化 + 密码强度）============
 html = html_of(c.get('/admin/users'))
