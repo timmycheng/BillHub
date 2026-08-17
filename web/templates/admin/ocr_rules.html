@@ -9,42 +9,252 @@
   </div>
 </div>
 
-<div class="panel">
-  <form method="post" action="{{ url_for('admin.ocr_rules_save') }}">
-    <div class="form-grid">
-      <label class="field wide"><span>合同金额关键词（每行一个）</span>
-        <textarea name="amount_keywords" rows="6"
-          placeholder="{{ defaults.amount_keywords|join('\n') }}">{{ rules.get('amount_keywords', [])|join('\n') }}</textarea></label>
-
-      <label class="field"><span>生效日期关键词（每行一个）</span>
-        <textarea name="start_date_keywords" rows="6"
-          placeholder="{{ defaults.start_date_keywords|join('\n') }}">{{ rules.get('start_date_keywords', [])|join('\n') }}</textarea></label>
-      <label class="field"><span>结束日期关键词（每行一个）</span>
-        <textarea name="end_date_keywords" rows="6"
-          placeholder="{{ defaults.end_date_keywords|join('\n') }}">{{ rules.get('end_date_keywords', [])|join('\n') }}</textarea></label>
-
-      <label class="field wide"><span>收款单位匹配正则</span>
-        <input type="text" name="payee_pattern" value="{{ rules.get('payee_pattern', '') or '' }}"
-               placeholder="{{ defaults.payee_pattern }}"></label>
-      <label class="field wide"><span>开户银行匹配正则</span>
-        <input type="text" name="bank_name_pattern" value="{{ rules.get('bank_name_pattern', '') or '' }}"
-               placeholder="{{ defaults.bank_name_pattern }}"></label>
-      <label class="field wide"><span>银行账号匹配正则</span>
-        <input type="text" name="bank_account_pattern" value="{{ rules.get('bank_account_pattern', '') or '' }}"
-               placeholder="{{ defaults.bank_account_pattern }}"></label>
-
-      <label class="field wide"><span>付款计划关键词映射（每行「关键词=期数」）</span>
-        <textarea name="plan_kw_map" rows="6"
-          placeholder="{% for k, v in defaults.plan_kw_map.items() %}{{ k }}={{ v }}
-{% endfor %}">{% for k, v in rules.get('plan_kw_map', {}).items() %}{{ k }}={{ v }}
-{% endfor %}</textarea></label>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn primary">保存规则</button>
-      <button type="submit" class="btn ghost" form="ocr-reset-form"
-              onclick="return confirm('确定恢复出厂默认规则？')">恢复出厂默认</button>
-    </div>
-  </form>
-  <form id="ocr-reset-form" method="post" action="{{ url_for('admin.ocr_rules_reset') }}"></form>
+<div class="panel" id="rule-tester">
+  <div class="panel-head">
+    <div><h3>规则测试器</h3>
+      <span class="muted">粘贴合同文本片段，用当前表单中的草稿规则（未保存也可）立即测试识别效果</span></div>
+    <div><button type="button" class="btn ghost" id="btn-example">填入示例</button>
+      <button type="button" class="btn primary" id="btn-test">测试识别</button></div>
+  </div>
+  <div class="tester-grid">
+    <textarea id="test-text" rows="6"
+      placeholder="粘贴合同文本片段，例如：&#10;合同金额：¥48000&#10;收款单位：某某科技有限公司&#10;开户银行：中国银行某某支行&#10;银行账号：6222 0000 1111 2222&#10;第1期：支付30%"></textarea>
+    <div id="test-result" class="tester-result muted">识别结果将显示在这里</div>
+  </div>
 </div>
+
+<form method="post" action="{{ url_for('admin.ocr_rules_save') }}" id="rules-form">
+<div class="rule-grid">
+  {# ===== 合同金额关键词 ===== #}
+  <div class="rule-card">
+    <div class="card-head">
+      <strong>合同金额关键词</strong>
+      {% if view.fields['amount_keywords'].custom %}<span class="tag orange">自定义</span>
+      {% else %}<span class="tag gray">默认</span>{% endif %}
+      <button type="submit" class="btn ghost small" form="reset-amount"
+              onclick="return confirm('恢复该字段出厂默认？')">恢复默认</button>
+    </div>
+    <p class="muted">当前生效：{{ view.fields['amount_keywords'].current|join('、') }}</p>
+    <textarea name="amount_keywords" rows="5"
+      placeholder="{{ view.fields['amount_keywords'].default|join('\n') }}">{{ '' if view.fields['amount_keywords'].custom else '' }}</textarea>
+    <p class="muted small">每行一个关键词；留空使用出厂默认</p>
+  </div>
+
+  {# ===== 生效日期关键词 ===== #}
+  <div class="rule-card">
+    <div class="card-head">
+      <strong>生效日期关键词</strong>
+      {% if view.fields['start_date_keywords'].custom %}<span class="tag orange">自定义</span>
+      {% else %}<span class="tag gray">默认</span>{% endif %}
+      <button type="submit" class="btn ghost small" form="reset-start"
+              onclick="return confirm('恢复该字段出厂默认？')">恢复默认</button>
+    </div>
+    <p class="muted">当前生效：{{ view.fields['start_date_keywords'].current|join('、') }}</p>
+    <textarea name="start_date_keywords" rows="5"
+      placeholder="{{ view.fields['start_date_keywords'].default|join('\n') }}"></textarea>
+    <p class="muted small">每行一个关键词；留空使用出厂默认</p>
+  </div>
+
+  {# ===== 结束日期关键词 ===== #}
+  <div class="rule-card">
+    <div class="card-head">
+      <strong>结束日期关键词</strong>
+      {% if view.fields['end_date_keywords'].custom %}<span class="tag orange">自定义</span>
+      {% else %}<span class="tag gray">默认</span>{% endif %}
+      <button type="submit" class="btn ghost small" form="reset-end"
+              onclick="return confirm('恢复该字段出厂默认？')">恢复默认</button>
+    </div>
+    <p class="muted">当前生效：{{ view.fields['end_date_keywords'].current|join('、') }}</p>
+    <textarea name="end_date_keywords" rows="5"
+      placeholder="{{ view.fields['end_date_keywords'].default|join('\n') }}"></textarea>
+    <p class="muted small">每行一个关键词；留空使用出厂默认</p>
+  </div>
+
+  {% for key, name in (('payee_pattern', '收款单位'), ('bank_name_pattern', '开户银行'),
+                       ('bank_account_pattern', '银行账号')) %}
+  {% set kid = key.split('_pattern')[0] %}
+  <div class="rule-card" data-alt="{{ key }}">
+    <div class="card-head">
+      <strong>{{ name }}</strong>
+      {% if view.fields[key].custom %}<span class="tag orange">自定义</span>
+      {% else %}<span class="tag gray">默认</span>{% endif %}
+      <button type="submit" class="btn ghost small" form="reset-{{ key }}"
+              onclick="return confirm('恢复该字段出厂默认？')">恢复默认</button>
+    </div>
+    <div class="mode-switch">
+      <label><input type="radio" name="{{ key }}_mode" value="simple"
+             {{ 'checked' if view.fields[key].mode == 'simple' }}> 简单模式（编辑同义词关键词）</label>
+      <label><input type="radio" name="{{ key }}_mode" value="advanced"
+             {{ 'checked' if view.fields[key].mode == 'advanced' }}> 高级模式（编辑正则）</label>
+    </div>
+    <div class="alt-simple">
+      <div class="chips-box">
+        {% for kw in view.fields[key].keywords %}<span class="chip">{{ kw }}<button type="button" class="chip-x" onclick="chipRemove(this)" aria-label="删除">×</button></span>{% endfor %}
+        <input type="text" class="chip-input" placeholder="输入同义词后回车添加"
+               onkeydown="chipKeydown(event, '{{ key }}')">
+      </div>
+      <input type="hidden" name="{{ kid }}_keywords" value="{{ view.fields[key].keywords|join('\n') }}">
+      <p class="muted small">识别规则 =（关键词1|关键词2|…）＋ 固定取值规则；留空使用出厂默认</p>
+    </div>
+    <div class="alt-advanced" {{ 'hidden' if view.fields[key].mode != 'advanced' }}>
+      <textarea name="{{ key }}" rows="3" placeholder="{{ view.fields[key].default }}"
+        >{{ view.fields[key].current if view.fields[key].custom else '' }}</textarea>
+      <p class="muted small">留空使用出厂默认；非法正则保存时会被拒绝</p>
+    </div>
+  </div>
+  {% endfor %}
+
+  {# ===== 付款计划关键词映射 ===== #}
+  <div class="rule-card wide">
+    <div class="card-head">
+      <strong>付款计划关键词映射</strong>
+      {% if view.plan.custom %}<span class="tag orange">自定义</span>
+      {% else %}<span class="tag gray">默认</span>{% endif %}
+      <button type="submit" class="btn ghost small" form="reset-plan"
+              onclick="return confirm('恢复该字段出厂默认？')">恢复默认</button>
+    </div>
+    <p class="muted">合同中出现关键词时归入对应期数：如「预付款 → 第1期」「尾款 → 末期」</p>
+    <table class="plan-map">
+      <thead><tr><th>关键词</th><th style="width:220px">归入期数</th><th style="width:60px"></th></tr></thead>
+      <tbody id="plan-rows">
+        {% for row in view.plan.rows %}
+        <tr>
+          <td><input type="text" name="plan_kw" value="{{ row.kw }}" placeholder="如 预付款"></td>
+          <td><select name="plan_seq">
+            {% for val, label in seq_options %}
+            <option value="{{ val }}" {{ 'selected' if row.seq == val }}>{{ label }}</option>
+            {% endfor %}
+            {% if row.seq not in ['1','2','3','4','9','10'] %}
+            <option value="{{ row.seq }}" selected>期数 {{ row.seq }}（历史数据）</option>
+            {% endif %}
+          </select></td>
+          <td><button type="button" class="btn ghost small" onclick="this.closest('tr').remove()">删除</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="button" class="btn ghost small" id="btn-plan-add">＋ 添加关键词映射</button>
+  </div>
+</div>
+
+<div class="form-actions">
+  <button type="submit" class="btn primary">保存规则</button>
+  <button type="submit" class="btn ghost" form="ocr-reset-form"
+          onclick="return confirm('确定恢复出厂默认规则？')">全部恢复出厂默认</button>
+</div>
+</form>
+<form id="ocr-reset-form" method="post" action="{{ url_for('admin.ocr_rules_reset') }}"></form>
+<form id="reset-amount" method="post" action="{{ url_for('admin.ocr_rules_reset_field') }}"><input type="hidden" name="field" value="amount_keywords"></form>
+<form id="reset-start" method="post" action="{{ url_for('admin.ocr_rules_reset_field') }}"><input type="hidden" name="field" value="start_date_keywords"></form>
+<form id="reset-end" method="post" action="{{ url_for('admin.ocr_rules_reset_field') }}"><input type="hidden" name="field" value="end_date_keywords"></form>
+<form id="reset-payee_pattern" method="post" action="{{ url_for('admin.ocr_rules_reset_field') }}"><input type="hidden" name="field" value="payee_pattern"></form>
+<form id="reset-bank_name_pattern" method="post" action="{{ url_for('admin.ocr_rules_reset_field') }}"><input type="hidden" name="field" value="bank_name_pattern"></form>
+<form id="reset-bank_account_pattern" method="post" action="{{ url_for('admin.ocr_rules_reset_field') }}"><input type="hidden" name="field" value="bank_account_pattern"></form>
+<form id="reset-plan" method="post" action="{{ url_for('admin.ocr_rules_reset_field') }}"><input type="hidden" name="field" value="plan_kw_map"></form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function chipKeydown(ev, key) {
+  if (ev.key !== 'Enter') return;
+  ev.preventDefault();
+  var input = ev.target;
+  var v = input.value.trim();
+  if (!v) return;
+  var card = input.closest('.rule-card');
+  var hidden = card.querySelector('input[type="hidden"]');
+  var existing = hidden.value.split('\n').filter(Boolean);
+  if (existing.includes(v)) { input.value = ''; return; }
+  existing.push(v);
+  hidden.value = existing.join('\n');
+  var chip = document.createElement('span');
+  chip.className = 'chip';
+  chip.textContent = v;
+  var x = document.createElement('button');
+  x.type = 'button'; x.className = 'chip-x'; x.textContent = '×';
+  x.addEventListener('click', function () { chipRemove(x); });
+  chip.appendChild(x);
+  input.parentNode.insertBefore(chip, input);
+  input.value = '';
+}
+function chipRemove(btn) {
+  var card = btn.closest('.rule-card');
+  var chip = btn.closest('.chip');
+  chip.remove();
+  var hidden = card.querySelector('input[type="hidden"]');
+  var kws = Array.from(card.querySelectorAll('.chip')).map(function (c) {
+    return c.textContent.replace('×', '').trim();
+  });
+  hidden.value = kws.join('\n');
+}
+document.querySelectorAll('.mode-switch input').forEach(function (r) {
+  r.addEventListener('change', function () {
+    var card = r.closest('.rule-card');
+    var advanced = card.querySelector('.alt-advanced');
+    var simple = card.querySelector('.alt-simple');
+    var isAdv = card.querySelector('input[value="advanced"]').checked;
+    advanced.hidden = !isAdv;
+    simple.hidden = isAdv;
+  });
+});
+function planAddRow() {
+  var tbody = document.getElementById('plan-rows');
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td><input type="text" name="plan_kw" placeholder="如 预付款"></td>'
+    + '<td><select name="plan_seq">'
+    + '<option value="1">第1期</option><option value="2">第2期</option>'
+    + '<option value="3">第3期</option><option value="4">第4期</option>'
+    + '<option value="9">末期（尾款 / 余款）</option><option value="10">质保期（质保金）</option>'
+    + '</select></td>'
+    + '<td><button type="button" class="btn ghost small" onclick="this.closest(\'tr\').remove()">删除</button></td>';
+  tbody.appendChild(tr);
+}
+document.getElementById('btn-plan-add').addEventListener('click', planAddRow);
+
+document.getElementById('btn-example').addEventListener('click', function () {
+  document.getElementById('test-text').value =
+    '合同金额：¥48000\n收款单位：某某科技有限公司\n开户银行：中国银行某某支行\n银行账号：6222 0000 1111 2222\n合同期限自2026年1月1日至2026年12月31日\n第1期：支付30% ¥14400\n第2期：验收后支付70%';
+});
+document.getElementById('btn-test').addEventListener('click', function () {
+  var fd = new FormData(document.getElementById('rules-form'));
+  fd.append('text', document.getElementById('test-text').value);
+  var box = document.getElementById('test-result');
+  box.className = 'tester-result muted';
+  box.textContent = '识别中…';
+  fetch('{{ url_for("admin.ocr_rules_test") }}', { method: 'POST', body: fd })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j.ok) {
+        box.className = 'tester-result';
+        box.textContent = '测试失败：' + (j.error || '未知错误');
+        return;
+      }
+      var f = j.fields || {};
+      if (!Object.keys(f).length) {
+        box.className = 'tester-result';
+        box.textContent = j.message || '未识别到有效信息';
+        return;
+      }
+      var rows = [['签订单位', f.customer_name], ['合同金额', f.total_amount],
+        ['收款单位', f.payee], ['开户银行', f.bank_name], ['银行账号', f.bank_account],
+        ['生效时间', f.start_date], ['结束时间', f.end_date]];
+      var plan = (f.plan || []).map(function (p) {
+        return '第' + p.seq + '期' + (p.ratio != null ? ' ' + (p.ratio * 100) + '%' : '')
+          + (p.amount ? ' ¥' + p.amount : '');
+      });
+      var html = '<table class="test-table"><tbody>';
+      rows.forEach(function (r) {
+        html += '<tr><td class="muted">' + r[0] + '</td><td>' + (r[1] || '—') + '</td></tr>';
+      });
+      html += '<tr><td class="muted">付款计划</td><td>' + (plan.join('；') || '—') + '</td></tr>';
+      html += '</tbody></table>';
+      box.className = 'tester-result';
+      box.innerHTML = html;
+    })
+    .catch(function () {
+      box.className = 'tester-result';
+      box.textContent = '请求失败，请重试';
+    });
+});
+</script>
 {% endblock %}

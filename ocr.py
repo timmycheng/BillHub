@@ -146,6 +146,39 @@ def _find_date_after(text, keywords):
 
 
 # ============ 合同识别规则（可配置：数据库覆盖出厂默认）============
+# 三个正则字段的「捕获后缀」：同义词关键词前缀 + 固定捕获规则拼接成完整正则。
+# 简单模式下仅编辑关键词；高级模式可整体自定义正则。
+ALT_TAILS = {
+    'payee_pattern': r'\s*[:：]?\s*([^\n,，;；。]{2,40})',
+    'bank_name_pattern': r'\s*[:：]?\s*([^\n,，;；。]{2,40})',
+    'bank_account_pattern': r'\s*[:：]?\s*([\d\s\-]{8,40})',
+}
+
+
+def pattern_from_keywords(keywords, tail):
+    """同义词关键词列表 + 捕获后缀 → 完整正则：(?:k1|k2|...)<tail>。"""
+    return f"(?:{'|'.join(k.strip() for k in keywords if k and k.strip())}){tail}"
+
+
+def split_alt_prefix(pattern, tail):
+    """把「关键词前缀 + 捕获后缀」形式的正则拆回关键词列表。
+    前缀不是纯 (?:a|b|c) 形式或后缀与给定 tail 不一致时返回 None（视为自定义高级正则）。"""
+    if not pattern:
+        return None
+    m = re.match(r'^\(\?:([^()]*)\)(.*)$', pattern, re.S)
+    if not m or m.group(2) != tail:
+        return None
+    keywords = [k.strip() for k in m.group(1).split('|') if k.strip()]
+    return keywords or None
+
+
+def extract_from_text(text, rules=None):
+    """从纯文本按合同规则解析（OCR 规则页「测试识别」用，不依赖 OCR 模型）。"""
+    if not text:
+        return None
+    return ContractOCR()._parse(text.splitlines(), rules)
+
+
 DEFAULT_CONTRACT_RULES = {
     'amount_keywords': ['合同金额', '合同总价', '合同总额', '总金额', '合同价款', '总价款',
                         '费用金额', '服务费', '服务费用', '含税', '中标价', '暂定总价'],
@@ -154,9 +187,12 @@ DEFAULT_CONTRACT_RULES = {
     'end_date_keywords': ['结束日期', '结束时间', '终止日期', '到期日期',
                           '截止日期', '有效期至', '合同届满', '履约期限',
                           '合同期限', '服务期限', '完工日期'],
-    'payee_pattern': r'(?:收款单位|收款方|账户名称|户名)\s*[:：]?\s*([^\n,，;；。]{2,40})',
-    'bank_name_pattern': r'(?:开户银行|开户行|开户银行名称|银行名称)\s*[:：]?\s*([^\n,，;；。]{2,40})',
-    'bank_account_pattern': r'(?:银行账号|开户账号|账号|账户号?|帐号)\s*[:：]?\s*([\d\s\-]{8,40})',
+    'payee_pattern': pattern_from_keywords(
+        ['收款单位', '收款方', '账户名称', '户名'], ALT_TAILS['payee_pattern']),
+    'bank_name_pattern': pattern_from_keywords(
+        ['开户银行', '开户行', '开户银行名称', '银行名称'], ALT_TAILS['bank_name_pattern']),
+    'bank_account_pattern': pattern_from_keywords(
+        ['银行账号', '开户账号', '账号', '账户', '账户号', '帐号'], ALT_TAILS['bank_account_pattern']),
     'plan_kw_map': {'预付款': 1, '首期': 1, '首付款': 1, '定金': 1, '签订': 1,
                     '进度款': 2, '中期款': 2,
                     '验收款': 3, '尾款': 9, '余款': 9, '质保金': 10, '保修金': 10},
