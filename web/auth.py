@@ -39,6 +39,7 @@ class User(UserMixin):
         self.username = row['username']
         self.display_name = row.get('display_name') or row['username']
         self.is_admin = bool(row.get('is_admin'))
+        self.must_change_password = bool(row.get('must_change_password'))
 
 
 @login_manager.user_loader
@@ -79,6 +80,16 @@ def can_access_contract(contract):
 auth_bp = Blueprint('auth', __name__)
 
 
+@auth_bp.before_app_request
+def _force_password_change():
+    """批量导入的初始密码用户：改密完成前锁定其他功能，仅放行改密/登出/静态资源。"""
+    if not (current_user.is_authenticated and current_user.must_change_password):
+        return
+    if request.endpoint in ('auth.change_password', 'auth.logout', 'static'):
+        return
+    return redirect(url_for('auth.change_password'))
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -111,6 +122,9 @@ def login():
 
         if ok and user_row:
             login_user(User(user_row))
+            if user_row.get('must_change_password'):
+                flash('首次登录，请先修改初始密码后再使用系统', 'warning')
+                return redirect(url_for('auth.change_password'))
             next_url = request.args.get('next') or url_for('main.dashboard')
             # 防开放重定向：只允许站内相对路径
             if not next_url.startswith('/') or next_url.startswith('//'):
@@ -149,7 +163,8 @@ def change_password():
             if err:
                 flash(err, 'danger')
             else:
-                db.update_user(int(current_user.id), password_hash=hash_password(new))
+                db.update_user(int(current_user.id), password_hash=hash_password(new),
+                               must_change_password=0)
                 flash('密码已修改，请牢记', 'success')
                 return redirect(url_for('main.dashboard'))
     return render_template('account/password.html')
