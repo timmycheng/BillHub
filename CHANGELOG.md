@@ -9,6 +9,12 @@ BillHub（原 WZBill）——合同 / 发票 / 审批 / 报销一体化处理平
 日常改动请顺手把条目写进顶部 `## [Unreleased]` 对应小节（新增/变更/修复/移除），
 发版时由 CI 自动将 [Unreleased] 转正为版本小节（详见 README「一键发版」）。
 
+## [Unreleased]
+
+### 变更
+
+- CHANGELOG 空 [Unreleased] 小节自动省略：发版 CI 转正后不再生成空小节，changelog-bot 在首个条目时自动补建，更新说明页跳过空小节渲染（#31）
+
 ## [2.1.0] - 2026-08-17
 
 ### 新增
