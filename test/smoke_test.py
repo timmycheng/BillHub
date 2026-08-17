@@ -231,7 +231,8 @@ if os.path.exists(TEMPLATE):
     check('payments page lists attachments', '补充说明.pdf' in txt and '验收单.docx' in txt)
     check('payments page shows timeline', 'timeline-h' in txt)
     check('payments 时间轴默认折叠（tl-row hidden）', 'tl-row" hidden' in txt)
-    check('timeline hidden to field', 'name="to" value="审核中"' in txt)
+    check('操作列含状态流转表单（管理员）', '标记为「审核中」' in txt and 'name="to" value="审核中"' in txt)
+    check('时间轴内不再含状态流转操作', 'tl-actions' not in txt)
 
     # 状态流转：已提交 -> 审核中 -> 已打款
     r = c.post('/payments/1/status', data={'to': '审核中'}, follow_redirects=True)
@@ -248,6 +249,38 @@ if os.path.exists(TEMPLATE):
     seg = html_of(c.get('/contracts/1'))
     seg = seg[seg.index('付款计划'):seg.index('报销记录')]
     check('付款计划期次状态与报销状态一致（已打款）', '已打款' in seg and '待付款' in seg)
+
+    # #14：第二条记录（第2期），已打款显示「已完成」，未完成显示「标记为」按钮
+    c.post('/payments/create', data={
+        'contract_id': '1', 'invoice_date': '2026-08-11',
+        'invoice_no': '66554433', 'stage': '第2期', 'amount': '100000',
+        'main_content': '', 'remark': '',
+    }, content_type='multipart/form-data', follow_redirects=True)
+    txt = html_of(c.get('/payments'))
+    check('管理员操作列：未完成显示标记按钮、已打款显示已完成',
+          '标记为「审核中」' in txt and '已完成' in txt and 'BX-00002' in txt)
+
+    # #14：经办人不可见按钮，服务端拒绝状态流转
+    login('u1', 'Qwe12345#')
+    c.post('/contracts/new', data={
+        'contract_no': 'HT-U1-001', 'contract_name': 'u1外包合同', 'customer_name': 'U1公司',
+        'total_amount': '50000', 'plan_ratio': ['100'], 'plan_amount': ['50000'],
+    }, follow_redirects=True)
+    c.post('/payments/create', data={
+        'contract_id': '2', 'invoice_date': '2026-08-12',
+        'invoice_no': '99887766', 'stage': '第1期', 'amount': '10000',
+        'main_content': '', 'remark': '',
+    }, content_type='multipart/form-data', follow_redirects=True)
+    txt = html_of(c.get('/payments'))
+    check('经办人列表不含状态流转按钮', 'BX-00003' in txt and '标记为' not in txt and 'name="to"' not in txt)
+    txt = html_of(c.get('/contracts/2'))
+    check('经办人详情不含状态流转按钮', '标记为' not in txt and 'name="to"' not in txt)
+    r = c.post('/payments/3/status', data={'to': '审核中'}, follow_redirects=True)
+    txt = html_of(r)
+    check('经办人直接 POST 状态被拒并提示无权限',
+          '仅管理员可推进报销状态' in txt and db.get_payment(3)['status'] == '已提交')
+    login('admin', 'admin')
+    c.post('/contracts/2/delete', follow_redirects=True)
 
     r = c.get('/contracts/1')
     check('detail page lists attachments', '补充说明.pdf' in html_of(r))
