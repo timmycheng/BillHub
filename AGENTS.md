@@ -9,9 +9,17 @@
 
 ## 变更日志规则（Keep a Changelog，强制）
 
-- **任何行为变化（新增/变更/修复/移除）都必须在 `CHANGELOG.md` 顶部 `## [Unreleased]` 的对应小节追加一条，与代码同一提交**
+- **任何行为变化（新增/变更/修复/移除）都必须在 `CHANGELOG.md` 顶部 `## [Unreleased]` 的对应小节追加一条**（走 PR 时由 changelog-bot 合并后自动追加，见下文开发流程）
 - 禁止直接编辑已发布版本的小节；禁止在本地手动 bump `pyproject.toml` 版本号或打 git tag
 - 纯文档 / 注释 / 无行为变化的杂项改动可不写条目
+
+## 需求与开发流程（GitHub Issues 驱动，`issue.md` 已退役）
+
+- 需求 / 缺陷统一用 GitHub Issues 管理：功能用「功能需求」模板，缺陷用「Bug 报告」模板；新建自动打「待开发」标签
+- 开发：在 Issue 下评论 `/dev`，机器人自动创建关联分支 `issue-N` 并打「开发中」标签
+- 提 PR（用 PR 模板，描述写明 `Closes #N`）→ CI 自动跑冒烟测试；建议打 CHANGELOG 归类标签：`新增` / `变更` / `修复` / `移除`（不打默认「变更」）
+- 合并后：changelog-bot 按标签自动把条目追加到 `[Unreleased]`（纯文档 PR 或 PR 已手动改过 CHANGELOG.md 则跳过）；关联 Issue 自动关闭并打「已完成」标签
+- 直接 push main 的改动（无 PR）仍须手动写 CHANGELOG 条目，与代码同一提交
 
 ## 发版流程（交给 CI，禁止手动发版）
 
@@ -29,4 +37,3 @@
 
 - 界面文案与 CHANGELOG 用中文；提交信息简洁说明行为变化（CI/发版类用 `ci:` / `chore:` 前缀）
 - 不提交任何密钥 / 令牌 / 收件地址，敏感配置走环境变量或 GitHub Secrets
-- `issue.md` 中的任务完成后勾选 `[x]` 并随对应提交一起更新
