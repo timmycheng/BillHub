@@ -50,6 +50,16 @@ function toggleDropdown(id) {
   if (willOpen) dd.classList.add('open');
 }
 
+// 报销记录行点击展开/收起时间轴（点击链接/按钮等不触发）
+document.addEventListener('click', function (e) {
+  if (e.target.closest('a, button, input, select, textarea, label')) return;
+  var row = e.target.closest('tr');
+  if (!row || row.classList.contains('tl-row')) return;
+  var tl = row.nextElementSibling;
+  if (!tl || !tl.classList.contains('tl-row')) return;
+  tl.hidden = !tl.hidden;
+});
+
 document.addEventListener('DOMContentLoaded', function () {
   // 顶栏日期
   document.querySelectorAll('.date-chip').forEach(function (el) {

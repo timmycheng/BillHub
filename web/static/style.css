@@ -282,6 +282,7 @@ td.link { color: var(--blue); font-weight: 700; }
 .tl-line.done { background: var(--green); }
 .tl-actions { margin-left: 28px; }
 tr.tl-row > td { background: #fafbfd !important; padding: 10px 16px !important; border-bottom: 1px solid var(--line) !important; }
+tr.rec-row { cursor: pointer; }
 
 /* 合同附件 */
 .attach-list { display: flex; flex-direction: column; gap: 14px; }

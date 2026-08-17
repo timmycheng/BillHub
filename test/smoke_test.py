@@ -207,6 +207,7 @@ if os.path.exists(TEMPLATE):
     check('GET /payments page', r.status_code == 200 and 'BX-00001' in txt)
     check('payments page lists attachments', '补充说明.pdf' in txt and '验收单.docx' in txt)
     check('payments page shows timeline', 'timeline-h' in txt)
+    check('payments 时间轴默认折叠（tl-row hidden）', 'tl-row" hidden' in txt)
     check('timeline hidden to field', 'name="to" value="审核中"' in txt)
 
     # 状态流转：已提交 -> 审核中 -> 已打款
@@ -220,6 +221,7 @@ if os.path.exists(TEMPLATE):
 
     r = c.get('/contracts/1')
     check('detail page lists attachments', '补充说明.pdf' in html_of(r))
+    check('合同详情报销时间轴默认折叠（tl-row hidden）', 'tl-row" hidden' in html_of(r))
     r = c.get('/files/attachment/1')
     check('download attachment', r.status_code == 200)
     r = c.post('/files/attachment/1/delete', follow_redirects=True)
@@ -236,6 +238,10 @@ css = html_of(c.get('/static/style.css'))
 check('CSS：时间线居中', 'justify-content: center' in css)
 check('CSS：图表数字常显', 'flex-shrink: 0' in css)
 check('CSS：表单面板居中', 'margin: 0 auto' in css)
+js = html_of(c.get('/static/app.js'))
+check('JS：点击报销行展开/收起时间轴',
+      'tl.hidden = !tl.hidden' in js
+      and "closest('a, button, input, select, textarea, label')" in js)
 
 # ============ 分页 ============
 for i in range(2, 22):  # 再建 20 条，连同已有的共 21 条
