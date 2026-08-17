@@ -1,4 +1,5 @@
 # Issue 生命周期：新建自动打「待开发」；关闭自动打「已完成」并清掉进行中标签
+# 注意：不 checkout（避免 contents 权限依赖），用 gh --repo 直接调 API
 name: Issue Triage
 
 on:
@@ -13,18 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
       ISSUE: ${{ github.event.issue.number }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: 新建 → 待开发
         if: github.event.action == 'opened'
-        run: gh issue edit "$ISSUE" --add-label 待开发
+        run: gh --repo "$REPO" issue edit "$ISSUE" --add-label 待开发
 
       - name: 关闭 → 已完成
         if: github.event.action == 'closed'
         run: |
-          gh issue edit "$ISSUE" --add-label 已完成
-          gh issue edit "$ISSUE" --remove-label 待开发 || true
-          gh issue edit "$ISSUE" --remove-label 开发中 || true
+          gh --repo "$REPO" issue edit "$ISSUE" --add-label 已完成
+          gh --repo "$REPO" issue edit "$ISSUE" --remove-label 待开发 || true
+          gh --repo "$REPO" issue edit "$ISSUE" --remove-label 开发中 || true
