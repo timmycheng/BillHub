@@ -361,6 +361,7 @@ def ocr_rules_reset_field():
     else:
         db.delete_settings(['ocr_rules'])
     flash('该字段已恢复出厂默认', 'success')
+    log_action('恢复默认 OCR 规则', detail=f'单字段：{key}')
     return redirect(url_for('admin.ocr_rules'))
 
 
