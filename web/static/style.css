@@ -437,3 +437,34 @@ body.modal-open { overflow: hidden; }
   .form-grid .wide, .detail-grid .wide { grid-column: auto; }
   .search { min-width: 100%; }
 }
+
+/* ===== OCR 规则页（分组卡片 + 标签编辑 + 测试器） ===== */
+.rule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rule-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.rule-card.wide { grid-column: 1 / -1; }
+.rule-card .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rule-card .card-head strong { font-size: 15px; }
+.rule-card .card-head .btn { margin-left: auto; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.mode-switch { display: flex; gap: 16px; margin: 4px 0 10px; }
+.mode-switch label { display: flex; align-items: center; gap: 5px; color: var(--muted); cursor: pointer; }
+.chips-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: #fbfcfe; min-height: 42px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; background: var(--blue2);
+  color: var(--blue-dark); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 13px; }
+.chip-x { border: none; background: transparent; color: var(--blue); font-size: 14px;
+  padding: 0 2px; line-height: 1; }
+.chip-x:hover { color: var(--red); }
+.chip-input { flex: 1; min-width: 130px; border: none; background: transparent; outline: none; padding: 4px; }
+.plan-map { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.plan-map th, .plan-map td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.plan-map input { width: 100%; }
+.tester-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.tester-grid textarea { width: 100%; }
+.tester-result { border: 1px dashed var(--line); border-radius: 10px; padding: 12px;
+  min-height: 130px; background: #fbfcfe; }
+.tester-result table.test-table { width: 100%; border-collapse: collapse; }
+.test-table td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+@media (max-width: 1000px) {
+  .rule-grid, .tester-grid { grid-template-columns: 1fr; }
+}

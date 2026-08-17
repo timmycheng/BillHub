@@ -494,21 +494,73 @@ r = c.post('/api/ocr/contract', data={'file': (io.BytesIO(b'\xd0\xcf\x11\xe0 fak
            content_type='multipart/form-data')
 check('合同 OCR：.doc 拒绝', r.status_code == 400 and 'doc' in html_of(r))
 
-# ============ OCR 规则可配置化 ============
+# ============ OCR 规则可配置化（重设计：分组卡片 / 标签模式 / 测试器） ============
+import json as _json  # noqa: E402
 html = html_of(c.get('/admin/ocr-rules'))
 check('GET /admin/ocr-rules', 'OCR 规则' in html and '合同金额关键词' in html and '恢复出厂默认' in html)
+check('规则页按字段分组卡片 + 简单/高级模式切换', 'rule-card' in html
+      and 'mode-switch' in html and '简单模式' in html and '高级模式' in html)
+check('规则页展示当前生效关键词（含默认）', '收款单位' in html and '账户名称' in html
+      and '尾款' in html and '规则测试器' in html)
+
+# 高级模式：非法正则被拒绝并提示
 r = c.post('/admin/ocr-rules', data={
     'amount_keywords': '自定义金额', 'start_date_keywords': '生效日期',
-    'end_date_keywords': '结束日期', 'payee_pattern': '([',
-    'bank_name_pattern': '', 'bank_account_pattern': '', 'plan_kw_map': '预付款=1',
+    'end_date_keywords': '结束日期', 'payee_pattern_mode': 'advanced',
+    'payee_pattern': '([', 'bank_name_pattern_mode': 'simple',
+    'bank_account_pattern_mode': 'simple',
 }, follow_redirects=True)
-check('非法正则被拒绝并提示', '正则不合法' in html_of(r))
+check('高级模式非法正则被拒绝并提示', '正则不合法' in html_of(r) and '收款单位' in html_of(r))
+
+# 简单模式：同义词关键词合成正则 + 计划映射下拉语义化保存
 r = c.post('/admin/ocr-rules', data={
     'amount_keywords': '自定义金额', 'start_date_keywords': '生效日期',
-    'end_date_keywords': '结束日期', 'payee_pattern': '',
-    'bank_name_pattern': '', 'bank_account_pattern': '', 'plan_kw_map': '预付款=1',
+    'end_date_keywords': '结束日期', 'payee_pattern_mode': 'simple',
+    'payee_keywords': '收款单位\n乙方单位', 'bank_name_pattern_mode': 'simple',
+    'bank_name_keywords': '', 'bank_account_pattern_mode': 'simple',
+    'bank_account_keywords': '', 'plan_kw': ['预付款'], 'plan_seq': ['1'],
 }, follow_redirects=True)
-check('保存 OCR 规则', 'OCR 规则已保存' in html_of(r) and '立即生效' in html_of(r))
+check('简单模式保存 OCR 规则', 'OCR 规则已保存' in html_of(r) and '立即生效' in html_of(r))
+_saved_rules = _json.loads(db.get_setting('ocr_rules'))
+check('简单模式关键词合成正则入库',
+      _saved_rules.get('payee_pattern') == '(?:收款单位|乙方单位)'
+      r'\s*[:：]?\s*([^\n,，;；。]{2,40})', _saved_rules.get('payee_pattern'))
+check('付款计划映射下拉语义化保存（预付款=第1期）',
+      _saved_rules.get('plan_kw_map') == {'预付款': 1})
+
+# 规则测试器：未保存草稿即可测试
+r = c.post('/admin/ocr-rules/test', data={
+    'text': '合同金额：¥8888\n乙方单位：测试收款公司\n开户银行：测试银行\n'
+            '银行账号：6222 0000 1111 2222\n第1期：支付30% ¥2666',
+    'amount_keywords': '自定义金额', 'payee_pattern_mode': 'simple',
+    'payee_keywords': '乙方单位', 'bank_name_pattern_mode': 'simple',
+    'bank_name_keywords': '', 'bank_account_pattern_mode': 'simple',
+    'bank_account_keywords': '', 'plan_kw': ['预付款'], 'plan_seq': ['1'],
+})
+_j = r.get_json() or {}
+check('规则测试器：草稿关键词即时生效（收款单位）',
+      r.status_code == 200 and _j.get('ok') and _j.get('fields', {}).get('payee') == '测试收款公司',
+      repr(_j)[:200])
+check('规则测试器：金额 / 银行 / 账号解析',
+      _j.get('fields', {}).get('total_amount') == '8888'
+      and _j.get('fields', {}).get('bank_name') == '测试银行'
+      and _j.get('fields', {}).get('bank_account') == '6222000011112222', repr(_j)[:200])
+r = c.post('/admin/ocr-rules/test', data={'text': ''})
+check('规则测试器：空文本提示', r.status_code == 200
+      and (r.get_json() or {}).get('ok') is False and '合同文本' in str((r.get_json() or {}).get('error', '')))
+
+# 保存后页面回显自定义关键词与计划行
+html = html_of(c.get('/admin/ocr-rules'))
+check('保存后页面回显自定义关键词标签', '乙方单位' in html and '自定义金额' in html)
+check('计划映射行回显期数下拉', '预付款' in html and '<option value="1" selected' in html)
+
+# 单字段恢复默认（其余字段保留）
+r = c.post('/admin/ocr-rules/reset-field', data={'field': 'payee_pattern'},
+           follow_redirects=True)
+check('单字段恢复默认提示', '该字段已恢复出厂默认' in html_of(r))
+_saved_rules = _json.loads(db.get_setting('ocr_rules'))
+check('单字段恢复仅清除对应字段', 'payee_pattern' not in _saved_rules
+      and 'amount_keywords' in _saved_rules, repr(_saved_rules)[:200])
 
 
 def make_custom_docx():

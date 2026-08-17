@@ -227,6 +227,83 @@ def _lines(value):
     return [ln.strip() for ln in (value or '').splitlines() if ln.strip()]
 
 
+_ALT_KEYS = ('payee_pattern', 'bank_name_pattern', 'bank_account_pattern')
+_ALT_FIELD_NAMES = {
+    'payee_pattern': '收款单位', 'bank_name_pattern': '开户银行',
+    'bank_account_pattern': '银行账号',
+}
+_RESETTABLE_KEYS = ('amount_keywords', 'start_date_keywords', 'end_date_keywords',
+                    'payee_pattern', 'bank_name_pattern', 'bank_account_pattern',
+                    'plan_kw_map')
+# 期数下拉语义（与识别排序逻辑一致：9=末期、10=质保期）
+PLAN_SEQ_OPTIONS = [('1', '第1期'), ('2', '第2期'), ('3', '第3期'), ('4', '第4期'),
+                    ('9', '末期（尾款 / 余款）'), ('10', '质保期（质保金）')]
+
+
+def _ocr_view(saved):
+    """构建规则页视图模型：每字段的生效值 / 默认值 / 是否自定义 / 编辑模式。"""
+    rules = ocr.merge_contract_rules(saved)
+    view = {'fields': {}, 'plan': {'rows': [], 'custom': False}}
+    for key in ('amount_keywords', 'start_date_keywords', 'end_date_keywords'):
+        view['fields'][key] = {
+            'current': rules[key],
+            'default': ocr.DEFAULT_CONTRACT_RULES[key],
+            'custom': key in saved and bool(saved.get(key)),
+        }
+    for key in _ALT_KEYS:
+        cur = rules[key]
+        kws = ocr.split_alt_prefix(cur, ocr.ALT_TAILS[key])
+        view['fields'][key] = {
+            'current': cur,
+            'keywords': kws or [],
+            'mode': 'simple' if kws is not None else 'advanced',
+            'custom': key in saved and bool(saved.get(key)),
+            'default': ocr.DEFAULT_CONTRACT_RULES[key],
+        }
+    plan = rules['plan_kw_map']
+    view['plan'] = {
+        'rows': [{'kw': k, 'seq': str(v)} for k, v in plan.items()],
+        'custom': 'plan_kw_map' in saved and bool(saved.get('plan_kw_map')),
+    }
+    return view
+
+
+def _overrides_from_form(form):
+    """从表单构建 overrides（保存与测试器共用）。返回 (overrides, error)。"""
+    overrides = {
+        'amount_keywords': _lines(form.get('amount_keywords')),
+        'start_date_keywords': _lines(form.get('start_date_keywords')),
+        'end_date_keywords': _lines(form.get('end_date_keywords')),
+        'plan_kw_map': {},
+    }
+    for key in _ALT_KEYS:
+        kw_name = f'{key.split("_pattern")[0]}_keywords'
+        if form.get(f'{key}_mode', 'simple') == 'advanced':
+            overrides[key] = form.get(key, '').strip()
+        else:
+            kws = _lines(form.get(kw_name))
+            overrides[key] = ocr.pattern_from_keywords(kws, ocr.ALT_TAILS[key]) if kws else ''
+    for key in _ALT_KEYS:
+        p = overrides[key]
+        if p:
+            try:
+                re.compile(p)
+            except re.error as e:
+                return None, f'正则不合法（{_ALT_FIELD_NAMES[key]}）：{e}'
+    plan_kws = form.getlist('plan_kw')
+    plan_seqs = form.getlist('plan_seq')
+    for kw, seq in zip(plan_kws, plan_seqs):
+        kw = (kw or '').strip()
+        if not kw:
+            continue
+        try:
+            overrides['plan_kw_map'][kw] = int(seq)
+        except (TypeError, ValueError):
+            return None, f'「{kw}」的期数选择无效，请重新选择'
+    overrides = {k: v for k, v in overrides.items() if v}
+    return overrides, None
+
+
 @bp.route('/admin/ocr-rules')
 @admin_required
 def ocr_rules():
@@ -237,40 +314,17 @@ def ocr_rules():
             saved = json.loads(raw) or {}
         except ValueError:
             saved = {}
-    return render_template('admin/ocr_rules.html', rules=saved,
-                           defaults=ocr.DEFAULT_CONTRACT_RULES)
+    return render_template('admin/ocr_rules.html', view=_ocr_view(saved),
+                           seq_options=PLAN_SEQ_OPTIONS)
 
 
 @bp.route('/admin/ocr-rules', methods=['POST'])
 @admin_required
 def ocr_rules_save():
-    overrides = {
-        'amount_keywords': _lines(request.form.get('amount_keywords')),
-        'start_date_keywords': _lines(request.form.get('start_date_keywords')),
-        'end_date_keywords': _lines(request.form.get('end_date_keywords')),
-        'payee_pattern': request.form.get('payee_pattern', '').strip(),
-        'bank_name_pattern': request.form.get('bank_name_pattern', '').strip(),
-        'bank_account_pattern': request.form.get('bank_account_pattern', '').strip(),
-        'plan_kw_map': {},
-    }
-    for k in ('payee_pattern', 'bank_name_pattern', 'bank_account_pattern'):
-        p = overrides[k]
-        if p:
-            try:
-                re.compile(p)
-            except re.error as e:
-                flash(f'正则不合法（{k}）：{e}', 'danger')
-                return redirect(url_for('admin.ocr_rules'))
-    for ln in _lines(request.form.get('plan_kw_map')):
-        if '=' in ln:
-            k, _, v = ln.partition('=')
-            try:
-                overrides['plan_kw_map'][k.strip()] = int(v.strip())
-            except ValueError:
-                flash(f'付款计划映射格式错误（应为 关键词=期数）：{ln}', 'danger')
-                return redirect(url_for('admin.ocr_rules'))
-    # 空值视为「使用出厂默认」
-    overrides = {k: v for k, v in overrides.items() if v}
+    overrides, err = _overrides_from_form(request.form)
+    if err:
+        flash(err, 'danger')
+        return redirect(url_for('admin.ocr_rules'))
     db.set_settings({'ocr_rules': json.dumps(overrides, ensure_ascii=False)})
     flash('OCR 规则已保存，重新识别立即生效', 'success')
     log_action('保存 OCR 规则')
@@ -284,6 +338,49 @@ def ocr_rules_reset():
     flash('已恢复出厂默认 OCR 规则', 'success')
     log_action('恢复默认 OCR 规则')
     return redirect(url_for('admin.ocr_rules'))
+
+
+@bp.route('/admin/ocr-rules/reset-field', methods=['POST'])
+@admin_required
+def ocr_rules_reset_field():
+    """单字段恢复出厂默认（其余字段保留）。"""
+    key = request.form.get('field', '').strip()
+    if key not in _RESETTABLE_KEYS:
+        flash('未知的规则字段', 'danger')
+        return redirect(url_for('admin.ocr_rules'))
+    saved = {}
+    raw = db.get_setting('ocr_rules')
+    if raw:
+        try:
+            saved = json.loads(raw) or {}
+        except ValueError:
+            saved = {}
+    saved.pop(key, None)
+    if saved:
+        db.set_settings({'ocr_rules': json.dumps(saved, ensure_ascii=False)})
+    else:
+        db.delete_settings(['ocr_rules'])
+    flash('该字段已恢复出厂默认', 'success')
+    return redirect(url_for('admin.ocr_rules'))
+
+
+@bp.route('/admin/ocr-rules/test', methods=['POST'])
+@admin_required
+def ocr_rules_test():
+    """规则测试器：用表单草稿规则（未保存）解析文本，返回各字段结果 JSON。"""
+    text = request.form.get('text', '').strip()
+    if not text:
+        return jsonify({'ok': False, 'error': '请输入要测试的合同文本片段'})
+    overrides, err = _overrides_from_form(request.form)
+    if err:
+        return jsonify({'ok': False, 'error': err})
+    try:
+        data = ocr.extract_from_text(text, overrides)
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'解析失败：{e}'})
+    if not data:
+        return jsonify({'ok': True, 'fields': {}, 'message': '未识别到有效信息'})
+    return jsonify({'ok': True, 'fields': data})
 
 
 # ============ LDAP/AD 配置（可视化，保存后立即生效）============
