@@ -70,6 +70,10 @@ jobs:
               end = body_start + nm.start() if nm else len(text)
               return m.start(), body_start, end
 
+          def drop_empty_unreleased(text):
+              # 省略无内容的 [Unreleased] 小节（与下一小节之间只有空白）
+              return re.sub(r'^## \[Unreleased\][ \t]*\n+(?=\s*## \[)', '', text, flags=re.M)
+
           def gen_from_commits():
               try:
                   last = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
@@ -93,20 +97,21 @@ jobs:
                   body = text[b:e].rstrip()
                   text = text[:b] + (body + '\n\n' if body else '') + extra + '\n\n' + text[e:]
 
-          # 2) [Unreleased] 转正为新版本小节，并在原位置补一个新的空 [Unreleased]
+          # 2) [Unreleased] 转正为新版本小节；不再补空 [Unreleased]（无内容时省略该小节）
           r = find_unreleased(text)
           if r is not None:
               s, b, e = r
               body = text[b:e].strip()
               if not body:
                   body = gen_from_commits()
-              block = f'## [Unreleased]\n\n## [{ver}] - {date}\n\n{body}\n\n'
+              block = f'## [{ver}] - {date}\n\n{body}\n\n'
               text = text[:s] + block + text[e:]
           else:
               body = gen_from_commits()
-              block = f'## [Unreleased]\n\n## [{ver}] - {date}\n\n{body}\n\n'
+              block = f'## [{ver}] - {date}\n\n{body}\n\n'
               vm = re.search(r'^## \[', text, re.M)
               text = text[:vm.start()] + block + text[vm.start():] if vm else text.rstrip() + '\n\n' + block
+          text = drop_empty_unreleased(text)
           ch.write_text(text, encoding='utf-8')
 
           # 3) bump pyproject.toml 版本号

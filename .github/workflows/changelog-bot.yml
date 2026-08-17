@@ -77,7 +77,13 @@ jobs:
           text = ch.read_text(encoding='utf-8')
           um = re.search(r'^## \[Unreleased\][^\n]*\n?', text, re.M)
           if not um:
-              raise SystemExit('CHANGELOG.md 缺少 [Unreleased] 小节，请手动补写条目')
+              # 补建 [Unreleased] 小节（发版后不再生成空小节，首个条目追加时自动创建）
+              vm = re.search(r'^## \[', text, re.M)
+              if vm:
+                  text = text[:vm.start()] + '## [Unreleased]\n\n' + text[vm.start():]
+              else:
+                  text = text.rstrip() + '\n\n## [Unreleased]\n\n'
+              um = re.search(r'^## \[Unreleased\][^\n]*\n?', text, re.M)
           start = um.end()
           nm = re.search(r'^## \[', text[start:], re.M)
           end = start + nm.start() if nm else len(text)

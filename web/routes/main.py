@@ -85,10 +85,14 @@ def _changelog_inline(text):
     return text
 
 
+_UNRELEASED_EMPTY = re.compile(r'^## \[Unreleased\][ \t]*\n+(?=\s*## \[)', re.M)
+
+
 def changelog_to_html(md):
     """把 CHANGELOG.md 转成 HTML（仅需 #/##/###/列表/加粗/链接，零第三方依赖）。
     跳过文档开头面向开发者的说明段落（Keep a Changelog / 发版约定等），
-    从第一个版本小节开始渲染。"""
+    并省略无内容的 [Unreleased] 小节，从第一个版本小节开始渲染。"""
+    md = _UNRELEASED_EMPTY.sub('', md)
     lines = md.splitlines()
     start = 0
     for i, line in enumerate(lines):
