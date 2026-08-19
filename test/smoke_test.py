@@ -648,6 +648,11 @@ check('审计日志已记录操作', _total > 0, f'total={_total}')
 _ok = all(db.list_audit_logs(action=a)[1] > 0
           for a in ('登录成功', '新建合同', '创建用户'))
 check('审计日志已覆盖核心操作（登录/合同/用户）', _ok)
+_al = db.list_audit_logs()[0][0]['created_at']
+_al_dt = datetime.strptime(_al, '%Y-%m-%d %H:%M:%S').replace(tzinfo=db.cn_now().tzinfo)
+_al_delta = abs((db.cn_now() - _al_dt).total_seconds())
+check('审计日志时间为北京时间（与东八区当前时间相差 <10 分钟）',
+      _al_delta < 600, f'相差 {_al_delta:.0f} 秒')
 
 c.get('/logout')
 r = c.post('/login', data={'username': 'admin', 'password': 'wrong-pass-1'},

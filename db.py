@@ -726,9 +726,10 @@ def add_audit_log(action, target='', detail='', username='', user_id=None, ip=''
     conn = get_conn()
     try:
         conn.execute(
-            'INSERT INTO audit_logs (user_id, username, action, target, detail, ip) '
-            'VALUES (?,?,?,?,?,?)',
-            (user_id, username or '', action, target or '', detail or '', ip or ''))
+            'INSERT INTO audit_logs (user_id, username, action, target, detail, ip, created_at) '
+            'VALUES (?,?,?,?,?,?,?)',
+            (user_id, username or '', action, target or '', detail or '', ip or '',
+             cn_now().strftime('%Y-%m-%d %H:%M:%S')))
         conn.execute('DELETE FROM audit_logs WHERE id <= '
                      '(SELECT MAX(id) - ? FROM audit_logs)', (AUDIT_KEEP,))
         conn.commit()
